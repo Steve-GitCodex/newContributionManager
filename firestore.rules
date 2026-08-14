@@ -1,40 +1,99 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Setup status - minimal public document (setupComplete flag only)
-    match /systemConfig/{document} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid != null;
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
     }
 
-    // Superadmin user documents - only readable by their own authenticated user
+    function uid() {
+      return isSignedIn() ? request.auth.uid : '__anonymous__';
+    }
+
+    function isSuperadmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/superadminUsers/$(uid()));
+    }
+
+    function orgRole(orgId) {
+      let membership = get(/databases/$(database)/documents/organizations/$(orgId)/users/$(uid()));
+      return membership != null ? membership.data.get('role', '') : '';
+    }
+
+    function isMember(orgId) {
+      return orgRole(orgId) != '';
+    }
+
+    function isOrgAdmin(orgId) {
+      return orgRole(orgId) == 'admin';
+    }
+
+    function isOrgStaff(orgId) {
+      return orgRole(orgId) in ['admin', 'editor'];
+    }
+
+    match /systemConfig/setup {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperadmin();
+    }
+
+    // Bootstrap only: once systemConfig/setup exists the gate closes for good, so a
+    // signed-in user can never promote themselves. Later superadmins are added out of
+    // band with the Admin SDK.
     match /superadminUsers/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow create: if request.auth.uid == uid;
-      allow update, delete: if request.auth.uid == uid;
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && !exists(/databases/$(database)/documents/systemConfig/setup);
+      allow update, delete: if false;
     }
-    
+
     match /users/{uid} {
-      allow read: if request.auth.uid != null;
-      allow create: if request.auth.uid == uid;
-      allow update: if request.auth.uid == uid;
+      allow read: if isSignedIn() && (request.auth.uid == uid || isSuperadmin());
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      allow delete: if isSuperadmin();
     }
-    
+
     match /userOrganizations/{uid}/{document=**} {
-      allow read: if request.auth.uid == uid;
-      allow write: if request.auth.uid == uid;
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
     }
-    
-    match /organizations/{organization}/{document=**} {
-      allow read: if true;  // Unauthenticated access to org metadata (needed for bootstrap)
-      allow write: if request.auth.uid != null;  // Only authenticated users can modify
+
+    match /organizations/{orgId} {
+      allow read: if true;
+      allow write: if isSuperadmin();
     }
-    
-    // Default deny for anything not explicitly allowed
+
+    match /organizations/{orgId}/users/{uid} {
+      allow read: if isMember(orgId) || isSuperadmin();
+      allow create, update: if (isOrgAdmin(orgId) || isSuperadmin())
+        && request.resource.data.role in ['admin', 'editor', 'viewer'];
+      allow delete: if isOrgAdmin(orgId) || isSuperadmin();
+    }
+
+    match /organizations/{orgId}/budgets/{uid} {
+      allow read: if isMember(orgId) || isSuperadmin();
+      allow write: if isSuperadmin()
+        || isOrgAdmin(orgId)
+        || (isMember(orgId) && request.auth.uid == uid);
+    }
+
+    match /organizations/{orgId}/{adminOnly}/{docId} {
+      allow read: if (isMember(orgId) || isSuperadmin())
+        && adminOnly in ['blacklist', 'settings'];
+      allow write: if (isOrgAdmin(orgId) || isSuperadmin())
+        && adminOnly in ['blacklist', 'settings'];
+    }
+
+    match /organizations/{orgId}/{staffWritable}/{docId} {
+      allow read: if (isMember(orgId) || isSuperadmin())
+        && staffWritable in ['contributions', 'campaigns', 'campaignContributions', 'members', 'months', 'meta'];
+      allow write: if (isOrgStaff(orgId) || isSuperadmin())
+        && staffWritable in ['contributions', 'campaigns', 'campaignContributions', 'members', 'months', 'meta'];
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
-

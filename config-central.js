@@ -1,40 +1,16 @@
-/**
- * Central Firebase Configuration
- * 
- * This is the central Firestore database used for:
- * - Organization metadata
- * - User authentication and profiles
- * - User-organization memberships
- * - Super admin operations
- * 
- * Each organization also has its own isolated Realtime Database
- * 
- * CONFIG LOADING:
- * - At build time, build.js generates config-generated.js from environment variables
- * - This file loads that generated config (or falls back to defaults)
- * 
- * SECURITY NOTE:
- * - Firebase API keys are public (they identify the project, not authenticate)
- * - Real user authentication happens via Firebase Auth
- * - Firestore security rules restrict database access
- */
+// Connection details for the central Firebase project. These identify the project;
+// they do not authenticate anyone, so they ship to the browser like a Supabase anon
+// key. Access is controlled by Firebase Auth and firestore.rules.
 
-// Try to load the generated config (created by build.js)
-// If not available, use defaults
-let CENTRAL_FIREBASE_CONFIG = {
-  apiKey: "DEFAULT_API_KEY_PLACEHOLDER",
-  authDomain: "universal-contribution-manager.firebaseapp.com",
-  projectId: "universal-contribution-manager",
-  storageBucket: "universal-contribution-manager.firebasestorage.app",
-  messagingSenderId: "10877815438",
-  appId: "1:10877815438:web:62bf12fcc99ccead3fd7df",
-  measurementId: "G-ZEBML1MZQ6"
+const CENTRAL_FIREBASE_CONFIG = {
+  "apiKey": "AIzaSyCHkmWsSkmjOJBoNQcsa_U97iNchcgPwkw",
+  "authDomain": "universal-contribution-manager.firebaseapp.com",
+  "projectId": "universal-contribution-manager",
+  "storageBucket": "universal-contribution-manager.firebasestorage.app",
+  "messagingSenderId": "10877815438",
+  "appId": "1:10877815438:web:7d4dac5b4c8a07063fd7df",
+  "measurementId": "G-68KCQX8PN6"
 };
-
-// Check if generated config is available (loaded via script tag in HTML)
-if (typeof GENERATED_FIREBASE_CONFIG !== 'undefined') {
-  CENTRAL_FIREBASE_CONFIG = GENERATED_FIREBASE_CONFIG;
-}
 
 // Central Firebase initialization
 let centralApp = null;

@@ -1,5 +1,4 @@
 let userauth;
-let fdatabase;
 let currentUser = null;
 let authSection;
 let onAuthStateChangedCallback = () => {};
@@ -7,18 +6,16 @@ let onAuthStateChangedCallback = () => {};
 /**
  * Initialize authentication module
  * @param {Object} firebaseAuth - Firebase Auth instance
- * @param {Object} firebaseDatabase - Firebase Realtime Database instance
  * @param {string} authContainerSelector - CSS selector for auth container
  * @returns {Promise} Resolves when auth state is first determined
  */
-function initAuth(firebaseAuth, firebaseDatabase, authContainerSelector) {
+function initAuth(firebaseAuth, authContainerSelector) {
     return new Promise((resolve) => {
-        if (!firebaseAuth || !firebaseDatabase) {
-            throw new Error('Firebase instances are required');
+        if (!firebaseAuth) {
+            throw new Error('Firebase Auth instance is required');
         }
 
         userauth = firebaseAuth;
-        fdatabase = firebaseDatabase;
         authSection = document.querySelector(authContainerSelector);
         
         // Create auth section if not found in DOM
@@ -53,28 +50,33 @@ function initAuth(firebaseAuth, firebaseDatabase, authContainerSelector) {
     });
 }
 
+// The rules already grant a super admin access to every organization; this lets the
+// UI match, so a super admin is not locked out of an org they did not join.
+async function isSuperadmin(uid) {
+    try {
+        const snapshot = await FirebaseManager.getFirestore().collection('superadminUsers').doc(uid).get();
+        return snapshot.exists;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Set up user data from database
  * @param {Object} user - Firebase auth user
  */
 async function setupUserData(user) {
     try {
-        const userRef = fdatabase.ref(`users/${user.uid}`);
-        const userSnapshot = await userRef.once('value');
-        
-        if (!userSnapshot.exists()) {
-            // First-time user, set as viewer by default
-            await userRef.set({
-                email: user.email,
-                role: 'viewer',
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-            });
-            user.role = 'viewer';
+        const membership = await OrgDb.getOne('users', user.uid);
+
+        if (membership) {
+            user.role = membership.role || 'viewer';
+        } else if (await isSuperadmin(user.uid)) {
+            user.role = 'admin';
         } else {
-            const userData = userSnapshot.val();
-            user.role = userData?.role || 'viewer';
+            throw new Error(`You are not a member of ${window.orgName || 'this organization'}. Ask an administrator to invite you.`);
         }
-        
+
         currentUser = user;
     } catch (error) {
         await ErrorHandler.showError(error, 'Authentication Error', {
@@ -107,7 +109,7 @@ function showLoginUI() {
 
     if (!authSection) return;
     
-    const orgName = window.orgName || 'Contribution Manager';
+    const orgName = window.orgName || 'ContriFlow';
     const orgInitial = orgName.charAt(0).toUpperCase();
     
     authSection.innerHTML = `
@@ -411,9 +413,7 @@ async function loadUserList() {
 
     const result = await ErrorHandler.handle(
         async () => {
-            const usersRef = fdatabase.ref('users');
-            const snapshot = await usersRef.once('value');
-            return snapshot.val();
+            return await OrgDb.getAll('users');
         },
         'Load Users',
         { showUI: false }
@@ -448,8 +448,8 @@ async function loadUserList() {
                 <td>${InputValidator.sanitizeHTML(user.email)}</td>
                 <td>
                     <select class="role-select" data-uid="${InputValidator.sanitizeHTML(uid)}">
-                        <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Viewer</option>
-                        <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editor</option>
+                        <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Member</option>
+                        <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Staff</option>
                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
                 </td>
@@ -486,7 +486,7 @@ async function updateUserRole(e) {
     const newRole = roleSelect.value;
     const result = await ErrorHandler.handle(
         async () => {
-            await fdatabase.ref(`users/${uid}/role`).set(newRole);
+            await OrgDb.doc('users', uid).update({ role: newRole });
             return true;
         },
         'Update User Role',

@@ -227,7 +227,7 @@ const Utils = (function() {
             message += `\n▪️ Total Paid: ${paidTotal.toLocaleString()}/=`;
             message += `\n▪️ Total Unpaid: ${unpaidTotal.toLocaleString()}/=`;
             message += "\n------------------------------------------";
-            message += "\n\n_Generated from Contribution Manager_";
+            message += "\n\n_Generated from ContriFlow_";
 
             return message;
         },
@@ -268,7 +268,7 @@ const Utils = (function() {
             message += `\n▪️ Total Paid: ${yearlyPaidAmount.toLocaleString()}/=`;
             message += `\n▪️ Total Unpaid: ${yearlyUnpaidAmount.toLocaleString()}/=`;
             message += "\n------------------------------------------";
-            message += "\n\n_Generated from Contribution Manager_";
+            message += "\n\n_Generated from ContriFlow_";
 
             return message;
         },

@@ -46,7 +46,6 @@ class SuperAdminDashboard {
     const orgStatus = document.querySelector('#orgStatus').value;
     const adminEmail = document.querySelector('#adminEmail').value;
     const adminPassword = document.querySelector('#adminPassword').value;
-    const firebaseConfigStr = document.querySelector('#firebaseConfig').value;
 
     try {
       this.clearMessages();
@@ -72,17 +71,6 @@ class SuperAdminDashboard {
           updates.adminPassword = adminPassword;
         }
 
-        if (firebaseConfigStr.trim()) {
-          try {
-            const firebaseConfig = this.parseFirebaseConfig(firebaseConfigStr);
-            if (firebaseConfig.projectId) {
-              updates.firebaseConfig = firebaseConfig;
-            }
-          } catch (configError) {
-            console.warn('Invalid Firebase config in edit, skipping', configError);
-          }
-        }
-
         if (Object.keys(updates).length === 0) {
           throw new Error('Please make at least one change');
         }
@@ -101,34 +89,23 @@ class SuperAdminDashboard {
           throw new Error('Organization name is required');
         }
 
-        let firebaseConfig = null;
-        
-        // Firebase config is required for creation
-        if (firebaseConfigStr.trim()) {
-          firebaseConfig = this.parseFirebaseConfig(firebaseConfigStr);
-          if (!firebaseConfig.projectId) {
-            throw new Error('Firebase config must include projectId');
-          }
-        } else {
-          throw new Error('Firebase config is required to create an organization');
+        if (!adminEmail.trim()) {
+          throw new Error('Administrator email is required');
         }
 
-        // Admin credentials are optional for creation
-        // If not provided, use placeholder values
-        const email = adminEmail.trim() || `admin@temp.local`;
-        const password = adminPassword.trim() || `TempPass123!`;
+        if (adminPassword.length < 8) {
+          throw new Error('Administrator password must be at least 8 characters');
+        }
 
         this.showLoading(true);
 
-        // Create organization
         const org = await this.superAdminService.createOrganization(
           orgName,
-          firebaseConfig,
-          email,
-          password
+          adminEmail.trim(),
+          adminPassword
         );
 
-        this.showSuccess(`Organization "${org.name}" created successfully!`);
+        this.showSuccess(`Organization "${org.name}" created with ${org.adminUser.email} as administrator.`);
         document.querySelector('#createOrgForm').reset();
         document.querySelector('#orgStatus').value = 'active';
         await this.loadOrganizations();
@@ -141,34 +118,6 @@ class SuperAdminDashboard {
     }
   }
 
-  parseFirebaseConfig(configStr) {
-    try {
-      // Try parsing as-is first
-      return JSON.parse(configStr);
-    } catch (firstError) {
-      // If that fails, attempt to auto-format
-      try {
-        const formatted = this.autoFormatJSON(configStr);
-        return JSON.parse(formatted);
-      } catch (formatError) {
-        throw new Error('Invalid Firebase config. Ensure it is valid JSON or JavaScript object format.');
-      }
-    }
-  }
-
-  autoFormatJSON(str) {
-    // Remove extra whitespace and newlines
-    str = str.trim();
-
-    // Add quotes around unquoted keys
-    // Matches: word: (followed by value) and replaces with "word":
-    str = str.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
-
-    // Handle edge case of starting key (no leading comma or brace-space)
-    str = str.replace(/^{[\s]*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/, '{"$1":');
-
-    return str;
-  }
 
   async loadOrganizations() {
     try {
@@ -258,13 +207,6 @@ class SuperAdminDashboard {
       // Populate form with organization data
       document.querySelector('#orgName').value = org.name || '';
       document.querySelector('#orgStatus').value = org.status || 'active';
-
-      // Populate Firebase config if available
-      if (org.firebaseConfig) {
-        document.querySelector('#firebaseConfig').value = JSON.stringify(org.firebaseConfig, null, 2);
-      } else {
-        document.querySelector('#firebaseConfig').value = '';
-      }
 
       // Clear email and password fields (these are not editable in this form)
       document.querySelector('#adminEmail').value = '';

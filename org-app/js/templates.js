@@ -543,7 +543,7 @@ const Templates = {
         <body>
             <div class="print-header">
                 <h1>Financial Report</h1>
-                <p>Contribution Manager - Year ${selectedYear}</p>
+                <p>ContriFlow - Year ${selectedYear}</p>
             </div>
             
             <div class="print-meta">
@@ -602,7 +602,7 @@ const Templates = {
             </div>
             
             <div class="footer-note">
-                <p>This is a financial report generated from the Contribution Manager system.</p>
+                <p>This is a financial report generated from the ContriFlow system.</p>
                 <p>For detailed information or clarifications, please contact the administrator.</p>
             </div>
         </body>

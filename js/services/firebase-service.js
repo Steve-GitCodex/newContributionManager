@@ -14,7 +14,6 @@ class FirebaseService {
   constructor() {
     this.centralFirestore = null;
     this.centralAuth = null;
-    this.orgFirebaseInstances = {}; // Map of slug -> { app, database }
   }
 
   /**
@@ -381,152 +380,6 @@ class FirebaseService {
   }
 
   // ============================================
-  // ORGANIZATION FIREBASE OPERATIONS
-  // ============================================
-
-  /**
-   * Register organization Firebase instance
-   * Called after org's Firebase is initialized
-   */
-  registerOrgInstance(slug, firebaseApp, database) {
-    if (!slug || !firebaseApp || !database) {
-      throw new Error('Slug, Firebase app, and database are required');
-    }
-
-    this.orgFirebaseInstances[slug] = {
-      app: firebaseApp,
-      database: database
-    };
-
-    return true;
-  }
-
-  /**
-   * Get organization Firebase instance
-   */
-  getOrgInstance(slug) {
-    if (!slug) {
-      throw new Error('Organization slug is required');
-    }
-
-    const instance = this.orgFirebaseInstances[slug];
-    if (!instance) {
-      throw new Error(`No Firebase instance registered for organization: ${slug}`);
-    }
-
-    return instance;
-  }
-
-  /**
-   * Write data to organization Realtime Database
-   */
-  async orgDatabaseSet(slug, path, data) {
-    if (!slug || !path || !data) {
-      throw new Error('Slug, path, and data are required');
-    }
-
-    try {
-      const { database } = this.getOrgInstance(slug);
-      await database.ref(path).set(data);
-
-      return { slug, path, data };
-    } catch (error) {
-      throw this.handleDatabaseError(error, 'set', slug, path);
-    }
-  }
-
-  /**
-   * Read data from organization Realtime Database
-   */
-  async orgDatabaseGet(slug, path) {
-    if (!slug || !path) {
-      throw new Error('Slug and path are required');
-    }
-
-    try {
-      const { database } = this.getOrgInstance(slug);
-      const snapshot = await database.ref(path).get();
-
-      return {
-        exists: snapshot.exists(),
-        data: snapshot.exists() ? snapshot.val() : null,
-        path
-      };
-    } catch (error) {
-      throw this.handleDatabaseError(error, 'get', slug, path);
-    }
-  }
-
-  /**
-   * Update data in organization Realtime Database
-   */
-  async orgDatabaseUpdate(slug, path, updates) {
-    if (!slug || !path || !updates) {
-      throw new Error('Slug, path, and updates are required');
-    }
-
-    try {
-      const { database } = this.getOrgInstance(slug);
-      await database.ref(path).update(updates);
-
-      return { slug, path, updates };
-    } catch (error) {
-      throw this.handleDatabaseError(error, 'update', slug, path);
-    }
-  }
-
-  /**
-   * Delete data from organization Realtime Database
-   */
-  async orgDatabaseDelete(slug, path) {
-    if (!slug || !path) {
-      throw new Error('Slug and path are required');
-    }
-
-    try {
-      const { database } = this.getOrgInstance(slug);
-      await database.ref(path).remove();
-
-      return { slug, path, deleted: true };
-    } catch (error) {
-      throw this.handleDatabaseError(error, 'delete', slug, path);
-    }
-  }
-
-  /**
-   * Subscribe to changes in organization Realtime Database
-   */
-  onOrgDatabaseChange(slug, path, callback) {
-    if (!slug || !path || !callback) {
-      throw new Error('Slug, path, and callback are required');
-    }
-
-    try {
-      const { database } = this.getOrgInstance(slug);
-      const ref = database.ref(path);
-
-      const listener = ref.on('value', (snapshot) => {
-        try {
-          callback({
-            exists: snapshot.exists(),
-            data: snapshot.val(),
-            path
-          });
-        } catch (error) {
-          console.error(`Error in org database listener for ${slug}/${path}:`, error);
-        }
-      });
-
-      // Return unsubscribe function
-      return () => {
-        ref.off('value', listener);
-      };
-    } catch (error) {
-      throw this.handleDatabaseError(error, 'on', slug, path);
-    }
-  }
-
-  // ============================================
   // ERROR HANDLING
   // ============================================
 
@@ -577,28 +430,6 @@ class FirebaseService {
     fsError.originalError = error;
 
     return fsError;
-  }
-
-  /**
-   * Handle Realtime Database errors
-   */
-  handleDatabaseError(error, operation, slug, path = '') {
-    const dbErrors = {
-      'permission-denied': `Permission denied for ${operation} on ${slug}/${path}`,
-      'instance-not-found': `Database instance not found for ${slug}`,
-      'write-canceled': `Write operation canceled for ${slug}/${path}`,
-      'unavailable': 'Database service temporarily unavailable'
-    };
-
-    const message = dbErrors[error.code] || error.message;
-    const dbError = new Error(message);
-    dbError.code = error.code;
-    dbError.operation = operation;
-    dbError.slug = slug;
-    dbError.path = path;
-    dbError.originalError = error;
-
-    return dbError;
   }
 
   // ============================================

@@ -190,7 +190,6 @@ class StateManager {
         id: organization.id,
         slug: organization.slug,
         name: organization.name,
-        firebaseConfig: organization.firebaseConfig,
         status: organization.status,
         createdAt: organization.createdAt
       },

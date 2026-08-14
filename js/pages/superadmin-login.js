@@ -25,8 +25,8 @@ class SuperAdminLoginPage {
   async checkSetupRequired() {
     try {
       const setupStatus = await this.firebaseService.centralGet('systemConfig', 'setup');
-      
-      if (!setupStatus || !setupStatus.setupComplete) {
+
+      if (!setupStatus || !setupStatus.exists || !setupStatus.data?.setupComplete) {
         // Setup has not been completed yet
         console.log('Redirecting to setup page - setup not complete');
         this.redirectToSetup('No admin accounts exist yet');

@@ -35,7 +35,7 @@ class AdminSetupPage {
   async checkIfSetupNeeded() {
     try {
       const setupStatus = await this.firebaseService.centralGet('systemConfig', 'setup');
-      const setupNeeded = !setupStatus || !setupStatus.setupComplete;
+      const setupNeeded = !setupStatus || !setupStatus.exists || !setupStatus.data?.setupComplete;
       console.log('Setup needed:', setupNeeded);
       return setupNeeded;
     } catch (error) {
@@ -66,10 +66,8 @@ class AdminSetupPage {
     const email = document.querySelector('#email').value.trim();
     const password = document.querySelector('#password').value;
     const confirmPassword = document.querySelector('#confirmPassword').value;
-    const setupCode = document.querySelector('#setupCode').value;
 
-    // Validation
-    if (!this.validateInputs(email, password, confirmPassword, setupCode)) {
+    if (!this.validateInputs(email, password, confirmPassword)) {
       return;
     }
 
@@ -84,11 +82,6 @@ class AdminSetupPage {
         allowEscapeKey: false,
         showConfirmButton: false
       });
-
-      // Verify setup code
-      if (!this.verifySetupCode(setupCode)) {
-        throw new Error('Invalid setup code');
-      }
 
       // Create user in Firebase Auth
       const result = await this.firebaseService.createUserWithEmailAndPassword(email, password);
@@ -139,8 +132,8 @@ class AdminSetupPage {
         errorMessage = 'Invalid email address.';
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Use at least 8 characters with uppercase, lowercase, and numbers.';
-      } else if (error.message === 'Invalid setup code') {
-        errorMessage = 'The setup code you entered is incorrect.';
+      } else if (error.code === 'permission-denied') {
+        errorMessage = 'Setup has already been completed for this deployment.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -160,7 +153,7 @@ class AdminSetupPage {
     }
   }
 
-  validateInputs(email, password, confirmPassword, setupCode) {
+  validateInputs(email, password, confirmPassword) {
     // Email validation
     if (!email || !email.includes('@')) {
       Swal.fire({
@@ -203,29 +196,7 @@ class AdminSetupPage {
       return false;
     }
 
-    // Setup code validation (before Firebase calls)
-    if (!setupCode || setupCode.length === 0) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Missing Setup Code',
-        text: 'Please enter the setup code.',
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000
-      });
-      return false;
-    }
-
     return true;
-  }
-
-  verifySetupCode(code) {
-    if (typeof GENERATED_SETUP_CODE === 'undefined' || GENERATED_SETUP_CODE === '') {
-      console.error('Setup code not configured. Set the SETUP_CODE environment variable and run build.js.');
-      return false;
-    }
-    return code === GENERATED_SETUP_CODE;
   }
 }
 

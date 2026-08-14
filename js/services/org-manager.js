@@ -77,9 +77,6 @@ class OrgManager {
         ...orgResult.data
       };
 
-      // Initialize Firebase for this organization (merged from OrgLoader)
-      await this.initializeOrganizationFirebase(this.currentOrg);
-
       // Update StateManager if available
       if (this.stateManager) {
         this.stateManager.setCurrentOrganization(this.currentOrg);
@@ -96,23 +93,6 @@ class OrgManager {
 
   getCurrentOrg() {
     return this.currentOrg;
-  }
-
-  getOrgDatabase() {
-    return this.orgDatabase;
-  }
-
-  setOrgDatabase(database) {
-    this.orgDatabase = database;
-  }
-
-  setOrgFirebaseApp(firebaseApp) {
-    this.orgFirebaseApp = firebaseApp;
-  }
-
-  getFirebaseConfig() {
-    if (!this.currentOrg) return null;
-    return this.currentOrg.firebaseConfig || null;
   }
 
   getOrgSlug() {
@@ -219,89 +199,8 @@ class OrgManager {
     this.orgFirebaseApp = null;
   }
 
-  /**
-   * Initialize Firebase for an organization
-   * Merged from OrgLoader - initializes org's Firebase app from config
-   * Registers with FirebaseService for centralized management
-   */
-  async initializeOrganizationFirebase(org) {
-    try {
-      if (!org.firebaseConfig) {
-        throw new Error(`No Firebase config found for organization: ${org.slug}`);
-      }
-
-      // Check cache first
-      if (this.loadedInstances[org.slug]) {
-        const instance = this.loadedInstances[org.slug];
-        this.orgFirebaseApp = instance.app;
-        this.orgDatabase = instance.database;
-        
-        // Register with FirebaseService for centralized access
-        this.firebaseService.registerOrgInstance(org.slug, instance.app, instance.database);
-        
-        return instance;
-      }
-
-      // Initialize new Firebase app for this org
-      const instanceName = `org_${org.slug}`;
-      let firebaseApp;
-
-      try {
-        // Try to get existing app
-        firebaseApp = firebase.app(instanceName);
-      } catch (error) {
-        // App doesn't exist, create it
-        firebaseApp = firebase.initializeApp(org.firebaseConfig, instanceName);
-      }
-
-      const database = firebase.database(firebaseApp);
-
-      // Cache the instance
-      this.loadedInstances[org.slug] = {
-        app: firebaseApp,
-        database: database,
-        auth: firebase.auth(firebaseApp)
-      };
-
-      // Set on this instance
-      this.orgFirebaseApp = firebaseApp;
-      this.orgDatabase = database;
-
-      // Register with FirebaseService for centralized management
-      this.firebaseService.registerOrgInstance(org.slug, firebaseApp, database);
-
-      return this.loadedInstances[org.slug];
-    } catch (error) {
-      if (this.stateManager) {
-        this.stateManager.setError('Failed to initialize organization Firebase: ' + error.message);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Disconnect from an organization
-   * Cleans up Firebase instances and state
-   */
-  async disconnectFromOrg(slug) {
-    try {
-      if (this.loadedInstances[slug]) {
-        try {
-          await firebase.app(`org_${slug}`).delete();
-          delete this.loadedInstances[slug];
-        } catch (error) {
-          // Silently ignore cleanup failures
-        }
-      }
-
-      this.clearCurrentOrg();
-      
-      if (this.stateManager) {
-        // Optionally clear org from state
-      }
-    } catch (error) {
-      throw error;
-    }
+  async disconnectFromOrg() {
+    this.clearCurrentOrg();
   }
 
   static getInstance() {

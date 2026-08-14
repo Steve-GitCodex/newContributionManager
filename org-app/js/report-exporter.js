@@ -234,7 +234,7 @@ const ReportExporter = (function() {
                     break;
             }
 
-            message += '\n_Generated from Contribution Manager_';
+            message += '\n_Generated from ContriFlow_';
 
             const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');

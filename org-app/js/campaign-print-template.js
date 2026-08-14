@@ -135,7 +135,7 @@ const CampaignPrintTemplate = (function () {
                 <tbody>${contributorRows(contributions)}</tbody>
             </table>
 
-            <div class="footer-note">Generated from Contribution Manager</div>
+            <div class="footer-note">Generated from ContriFlow</div>
         </body>
         </html>
     `;

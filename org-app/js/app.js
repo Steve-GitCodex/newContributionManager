@@ -3,14 +3,14 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Verify org context is available (should already be initialized by inline script before firebase-manager.js)
-    if (!window.orgFirebaseConfig || !window.orgSlug) {
+    if (!window.orgSlug) {
         // Fallback: try to read from sessionStorage if inline script didn't run for some reason
         const orgContextStr = sessionStorage.getItem('orgContext');
         if (orgContextStr) {
             const orgContext = JSON.parse(orgContextStr);
-            window.orgFirebaseConfig = orgContext.firebaseConfig;
             window.orgSlug = orgContext.slug;
             window.orgName = orgContext.name;
+            OrgDb.setSlug(orgContext.slug);
             // Organization context loaded from fallback
         } else {
             // No org context available - user accessed org-app directly without proper setup
@@ -63,7 +63,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Get Firebase references
-    const database = FirebaseManager.getDatabase();
     const auth = FirebaseManager.getAuth();
 
     // Initialize DOM Manager
@@ -77,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadData() {
         const startTime = performance.now();
         try {
-            const data = await FirebaseManager.loadData();
+            const data = await DataAdapter.loadAll();
             
             appState.contributionsData = data.contributionsData;
             appState.blacklistData = data.blacklistData;
@@ -86,18 +85,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             FirebaseManager.setLastSyncTime(data.lastSyncTime);
             Utils.updateSyncStatus(data.lastSyncTime);
             
-            // Initialize to valid month and year based on loaded data
             initializeCurrentMonthAndYear();
-            // Hide the loading spinner after data is loaded
             hideLoadingSpinner();
-            
-            // Data loaded successfully
         } catch (error) {
+            console.error('Failed to load data:', error);
             hideLoadingSpinner();
             Swal.fire({
                 icon: 'error',
                 title: 'Failed to Load Data',
-                text: 'There was an error loading your data. Please refresh the page.',
+                text: error.message || 'There was an error loading your data. Please refresh the page.',
                 confirmButtonText: 'Refresh',
             }).then(() => {
                 window.location.reload();
@@ -112,20 +108,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveTimeout = setTimeout(async () => {
             const startTime = performance.now();
             try {
-                const success = await FirebaseManager.saveData(
+                const userRole = AuthModule.getUserRole();
+                const currentUserUID = AuthModule.getCurrentUser()?.uid;
+
+                if (userRole !== 'admin' && userRole !== 'editor') {
+                    throw new Error('You do not have permission to save changes.');
+                }
+
+                const backupPayload = {
+                    contributionsData: appState.contributionsData,
+                    blacklistData: appState.blacklistData,
+                    budgetData: appState.budgetData,
+                    campaignsData: appState.campaignsData,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('contributionsData', JSON.stringify(appState.contributionsData || {}));
+                localStorage.setItem('blacklistData', JSON.stringify(appState.blacklistData));
+                localStorage.setItem('budgetData', JSON.stringify(appState.budgetData || {}));
+                localStorage.setItem('campaignsData', JSON.stringify(appState.campaignsData || {}));
+                localStorage.setItem('lastBackup', JSON.stringify(backupPayload));
+
+                const success = await DataWriteAdapter.saveAll(
                     appState.contributionsData,
                     appState.blacklistData,
                     appState.budgetData,
                     appState.campaignsData,
-                    showNotification
+                    userRole,
+                    currentUserUID
                 );
+
                 if (success) {
-                    Utils.updateSyncStatus(FirebaseManager.getLastSyncTime());
-                            // Data saved successfully - refresh UI to ensure all views are in sync
+                    const now = Date.now();
+                    FirebaseManager.setLastSyncTime(now);
+                    Utils.updateSyncStatus(now);
+                    localStorage.setItem('lastSyncTime', now);
+                    
+                    if (showNotification) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Saved!',
+                            text: 'Your changes have been saved to Firebase.',
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                    
                     try {
                         updateDisplay();
                     } catch (err) {
-                        // Update display error - UI may be out of sync temporarily
+                        // Update display error handled gracefully
                     }
                 }
             } catch (error) {
@@ -145,32 +178,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function syncData() {
         const startTime = performance.now();
         try {
-            // Re-load all data from Firebase
-            const data = await FirebaseManager.loadData();
+            const data = await DataAdapter.loadAll();
             appState.contributionsData = data.contributionsData;
             appState.blacklistData = data.blacklistData;
             appState.budgetData = data.budgetData || { expenses: {} };
             appState.campaignsData = data.campaignsData || {};
             
-            // Refresh year/month selectors with potentially new data
             Utils.populateYearSelect(dom.yearSelect, appState.currentYear, appState.contributionsData);
             Utils.populateMonthSelect(dom.monthSelect, appState.currentMonth, appState.contributionsData, appState.currentYear);
             
             if (data.lastSyncTime) {
                 FirebaseManager.setLastSyncTime(data.lastSyncTime);
                 Utils.updateSyncStatus(data.lastSyncTime);
-                // Data synced successfully
             }
             
-            // Re-initialize modules and refresh display
             UIRenderer.init(appState, saveData);
             ViewManager.init(appState, eventHandlers);
             updateDisplay();
         } catch (error) {
+            console.error('Failed to sync data:', error);
             Swal.fire({
                 icon: 'error',
                 title: 'Sync Failed',
-                text: 'Failed to synchronize data with the server. Please check your connection.',
+                text: error.message || 'Failed to synchronize data with the server. Please check your connection.',
             });
         }
     }
@@ -543,7 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Set the callback BEFORE initializing auth so we catch the initial state
         AuthModule.setAuthStateChangedCallback(handleAuthStateChanged);
-        await AuthModule.initAuth(auth, database, '.auth-section');
+        await AuthModule.initAuth(auth, '.auth-section');
     } catch (error) {
         Swal.fire({
             icon: 'error',

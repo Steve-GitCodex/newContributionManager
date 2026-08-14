@@ -1,19 +1,6 @@
 // Report Generator Module
 // Pure data computation functions — no DOM side effects
 
-// Show toast notification (global utility; loaded before reports.js)
-function showToast(icon, title, text) {
-    Swal.fire({
-        icon: icon,
-        title: title,
-        text: text,
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000
-    });
-}
-
 const ReportGenerator = (function() {
     return {
         // Check if data exists in the selected date range

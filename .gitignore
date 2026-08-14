@@ -25,7 +25,16 @@ yarn.lock
 # ==========================
 .env
 .env.local
-config-generated.js
+
+# ==========================
+# Service Account Keys - never commit
+# ==========================
+keys/
+*service-account*.json
+*serviceAccount*.json
+migration-payload.json
+users.json
+rules-test.log
 
 # ==========================
 # Documentation (Internal Only)
@@ -105,3 +114,10 @@ REFACTORING_GUIDE.md
 .vercel
 .env*.local
 .kilo/
+
+# Auth migration artifacts - contain password hashes and signer keys
+users-source.json
+users.json
+hash-config.json
+users-import.json
+.playwright-mcp/

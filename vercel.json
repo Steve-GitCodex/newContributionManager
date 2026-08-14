@@ -1,15 +1,34 @@
 {
-  "buildCommand": "node build.js",
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/org-app/(.*)", "destination": "/org-app/$1" },
-    { "source": "/pages/(.*)", "destination": "/pages/$1" },
-    { "source": "/css/(.*)", "destination": "/css/$1" },
-    { "source": "/js/(.*)", "destination": "/js/$1" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/config-central.js", "destination": "/config-central.js" },
-    { "source": "/config-generated.js", "destination": "/config-generated.js" },
-    { "source": "/", "destination": "/index.html" }
+    {
+      "source": "/org-app/(.*)",
+      "destination": "/org-app/$1"
+    },
+    {
+      "source": "/pages/(.*)",
+      "destination": "/pages/$1"
+    },
+    {
+      "source": "/css/(.*)",
+      "destination": "/css/$1"
+    },
+    {
+      "source": "/js/(.*)",
+      "destination": "/js/$1"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/config-central.js",
+      "destination": "/config-central.js"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
   ]
 }

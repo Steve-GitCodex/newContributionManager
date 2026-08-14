@@ -611,7 +611,7 @@ const EventHandlers = (function () {
                 const campaignId = SpecialGivingManager.createCampaign(state.campaignsData, purpose, target, targetDate, reason, notes);
                 
                 if (campaignId) {
-                    FirebaseManager.saveData(state.contributionsData, state.blacklistData, state.budgetData, state.campaignsData);
+                    _saveCallback();
                     ViewManager.updateDisplay(state);
                     Swal.fire('Success', 'Campaign created successfully!', 'success');
                 } else {

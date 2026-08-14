@@ -668,7 +668,7 @@ const UIRenderer = (function() {
         applyRoleRestrictions(userRole) {
             const dom = DOMManager.getAll();
             const isAdmin = userRole === 'admin';
-            const isViewer = userRole === 'viewer';
+            const isStaff = userRole === 'admin' || userRole === 'editor';
 
             const editorElements = [
                 dom.contributionSection,
@@ -689,7 +689,7 @@ const UIRenderer = (function() {
                 budgetTabBtn.style.display = isAdmin ? 'flex' : 'none';
             }
 
-            if (isViewer) {
+            if (!isStaff) {
                 editorElements.forEach(el => { if (el) el.style.display = 'none'; });
             }
 
@@ -697,8 +697,12 @@ const UIRenderer = (function() {
                 adminElements.forEach(el => { if (el) el.style.display = 'none'; });
             }
 
-            document.querySelectorAll('.toggle-payment, .remove-contribution, .edit-contribution, .remove-from-blacklist').forEach(el => {
-                if (isViewer) el.style.display = 'none';
+            document.querySelectorAll('.toggle-payment, .remove-contribution, .edit-contribution').forEach(el => {
+                if (!isStaff) el.style.display = 'none';
+            });
+
+            document.querySelectorAll('.remove-from-blacklist').forEach(el => {
+                if (!isAdmin) el.style.display = 'none';
             });
         },
 

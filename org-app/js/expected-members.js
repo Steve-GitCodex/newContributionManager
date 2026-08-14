@@ -1,19 +1,6 @@
 // Expected Members Manager Module
 // Handles CRUD operations for the expected members list
 
-// Show toast notification
-function showToast(icon, title, text) {
-    Swal.fire({
-        icon: icon,
-        title: title,
-        text: text,
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 3000
-    });
-}
-
 const ExpectedMembersManager = (function() {
     const STORAGE_KEY = 'expectedMembers';
 

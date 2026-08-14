@@ -5,8 +5,10 @@
   "type": "module",
   "main": "index.html",
   "scripts": {
-    "build": "node build.js",
+    "dev": "node dev-server.mjs",
+    "migrate": "node scripts/migrate-to-central.js",
     "test": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project rules-test-contriflow \"vitest run --config vitest.rules.config.js\"",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui"
@@ -19,10 +21,13 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "vitest": "^1.0.4",
-    "@vitest/ui": "^1.0.4",
+    "@firebase/rules-unit-testing": "^3.0.4",
     "@testing-library/dom": "^9.3.4",
-    "jsdom": "^23.0.1"
+    "@vitest/ui": "^1.0.4",
+    "firebase-admin": "^14.2.0",
+    "firebase-tools": "^15.27.0",
+    "jsdom": "^23.0.1",
+    "vitest": "^1.0.4"
   },
   "dependencies": {
     "firebase": "^10.8.0"

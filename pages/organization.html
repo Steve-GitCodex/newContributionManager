@@ -88,8 +88,7 @@
         // Store complete org context in sessionStorage for org-app
         sessionStorage.setItem('orgContext', JSON.stringify({
           slug: org.slug,
-          name: org.name,
-          firebaseConfig: org.firebaseConfig
+          name: org.name
         }));
 
         // Clear timeout and redirect to org-app/index.html

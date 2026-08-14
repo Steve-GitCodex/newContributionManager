@@ -20,81 +20,73 @@ class SuperAdminService {
     return true;
   }
 
-  async createOrganization(orgName, firebaseConfig, adminEmail, adminPassword) {
+  async createOrganization(orgName, adminEmail, adminPassword) {
+    if (!orgName || !orgName.trim()) {
+      throw new Error('Organization name is required');
+    }
+    if (!adminEmail || !adminEmail.trim()) {
+      throw new Error('Administrator email is required');
+    }
+    if (!adminPassword || adminPassword.length < 8) {
+      throw new Error('Administrator password must be at least 8 characters');
+    }
+
+    const slug = this.generateSlug(orgName);
+    const existingOrgResult = await this.firebaseService.centralGet('organizations', slug);
+
+    if (existingOrgResult.exists) {
+      throw new Error(`Organization slug already exists: ${slug}`);
+    }
+
+    const adminUid = await this.provisionAdminAccount(adminEmail.trim(), adminPassword);
+    const createdAt = new Date().toISOString();
+
+    const orgData = {
+      id: this.generateId(),
+      name: orgName.trim(),
+      slug: slug,
+      status: 'active',
+      createdAt: createdAt
+    };
+
+    await this.firebaseService.centralSet('organizations', slug, orgData);
+    await this.firebaseService.centralCreateNested('organizations', slug, 'users', adminUid, {
+      email: adminEmail.trim(),
+      role: 'admin',
+      createdAt: createdAt
+    });
+
+    return {
+      ...orgData,
+      adminUser: { uid: adminUid, email: adminEmail.trim() }
+    };
+  }
+
+  // Runs on a throwaway Firebase app so creating the account does not replace
+  // the super admin's own session on the default app.
+  async provisionAdminAccount(email, password) {
+    const appName = `provision_${Date.now()}`;
+    const provisioningApp = firebase.initializeApp(firebase.app().options, appName);
+
     try {
-      if (!firebaseConfig || !firebaseConfig.projectId) {
-        throw new Error('Valid Firebase config required for organization');
-      }
-
-      const slug = this.generateSlug(orgName);
-      const orgId = this.generateId();
-
-      // Check if slug exists in Firestore using FirebaseService
-      const existingOrgResult = await this.firebaseService.centralGet('organizations', slug);
-
-      if (existingOrgResult.exists) {
-        throw new Error(`Organization slug already exists: ${slug}`);
-      }
-
-      // Initialize organization's own Firebase to create admin user there
-      const orgAppName = `init_${slug}_${Date.now()}`;
-      const orgFirebaseApp = firebase.initializeApp(firebaseConfig, orgAppName);
-      const orgAuth = firebase.auth(orgFirebaseApp);
-      const orgDatabase = firebase.database(orgFirebaseApp);
-
-      // Create admin user in organization's Firebase
-      let adminUid;
-      let adminUser;
+      const auth = firebase.auth(provisioningApp);
 
       try {
-        // Try to create the user
-        adminUser = await orgAuth.createUserWithEmailAndPassword(adminEmail, adminPassword);
-        adminUid = adminUser.user.uid;
+        const created = await auth.createUserWithEmailAndPassword(email, password);
+        return created.user.uid;
       } catch (authError) {
-        // If email already exists, try to sign in with the provided password
-        if (authError.code === 'auth/email-already-in-use') {
-          try {
-            adminUser = await orgAuth.signInWithEmailAndPassword(adminEmail, adminPassword);
-            adminUid = adminUser.user.uid;
-          } catch (signInError) {
-            throw new Error(`Email already in use and password does not match. Please use a different email or verify the password.`);
-          }
-        } else {
+        if (authError.code !== 'auth/email-already-in-use') {
           throw authError;
         }
-      }
-
-      // Add admin to users in organization's Realtime Database
-      await orgDatabase.ref(`users/${adminUid}`).set({
-        email: adminEmail,
-        role: 'admin',
-        createdAt: firebase.database.ServerValue.TIMESTAMP
-      });
-
-      // Create organization metadata in central Firestore using FirebaseService
-      const orgData = {
-        id: orgId,
-        name: orgName,
-        slug: slug,
-        firebaseConfig: firebaseConfig,
-        status: 'active',
-        createdAt: new Date().toISOString()
-      };
-
-      await this.firebaseService.centralSet('organizations', slug, orgData);
-
-      // Clean up temporary Firebase instance
-      await firebase.app(orgAppName).delete();
-
-      return {
-        ...orgData,
-        adminUser: {
-          uid: adminUid,
-          email: adminEmail
+        try {
+          const signedIn = await auth.signInWithEmailAndPassword(email, password);
+          return signedIn.user.uid;
+        } catch {
+          throw new Error('That email already has an account and the password does not match. Use a different email, or the existing password.');
         }
-      };
-    } catch (error) {
-      throw error;
+      }
+    } finally {
+      await provisioningApp.delete();
     }
   }
 

@@ -3,7 +3,6 @@
 // Now integrated as a module pattern instead of standalone app
 
 const AdminDashboard = (function() {
-    const database = FirebaseManager.getDatabase();
     const auth = FirebaseManager.getAuth();
     let currentUser = null;
     let isInitialized = false;
@@ -50,6 +49,47 @@ const AdminDashboard = (function() {
         if (printBtn) {
             printBtn.addEventListener('click', printReport);
         }
+
+        const inviteForm = document.getElementById('invite-form');
+        if (inviteForm) {
+            inviteForm.addEventListener('submit', handleInvite);
+        }
+    }
+
+    async function handleInvite(e) {
+        e.preventDefault();
+
+        const emailInput = document.getElementById('invite-email');
+        const passwordInput = document.getElementById('invite-password');
+        const roleInput = document.getElementById('invite-role');
+        const submitButton = e.currentTarget.querySelector('button[type="submit"]');
+
+        submitButton.disabled = true;
+
+        try {
+            const result = await MemberInvite.invite(emailInput.value, passwordInput.value, roleInput.value);
+
+            emailInput.value = '';
+            passwordInput.value = '';
+
+            Swal.fire({
+                icon: 'success',
+                title: result.accountCreated ? 'Member Added' : 'Existing Account Added',
+                text: `${result.email} can now sign in as ${MemberInvite.ROLES[result.role]}.`,
+                customClass: { container: 'swal-alert' }
+            });
+
+            await loadUsersData();
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Could Not Add Member',
+                text: error.message,
+                customClass: { container: 'swal-alert' }
+            });
+        } finally {
+            submitButton.disabled = false;
+        }
     }
 
     // Handle tab change
@@ -80,9 +120,7 @@ const AdminDashboard = (function() {
     // Load and display users
     async function loadUsersData() {
         try {
-            const usersRef = database.ref('users');
-            const usersSnapshot = await usersRef.once('value');
-            const users = usersSnapshot.val() || {};
+            const users = await OrgDb.getAll('users');
             
             dom.adminUserList.innerHTML = '';
 
@@ -96,8 +134,8 @@ const AdminDashboard = (function() {
                     <td>${sanitizeHTML(user.email)}</td>
                     <td>
                         <select class="role-select" data-uid="${uid}">
-                            <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Viewer</option>
-                            <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Editor</option>
+                            <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Member</option>
+                            <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Staff</option>
                             <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                         </select>
                     </td>
@@ -133,7 +171,7 @@ const AdminDashboard = (function() {
         const newRole = roleSelect.value;
 
         try {
-            await database.ref(`users/${uid}/role`).set(newRole);
+            await OrgDb.doc('users', uid).update({ role: newRole });
             Swal.fire({
                 icon: 'success',
                 title: 'Success',
@@ -157,16 +195,13 @@ const AdminDashboard = (function() {
     // Load financial data
     async function loadFinancialData() {
         try {
-            const contributionsRef = database.ref('contributionsData');
-            const budgetsRef = database.ref('budgets');
-            
-            const [contributionsSnapshot, budgetsSnapshot] = await Promise.all([
-                contributionsRef.once('value'),
-                budgetsRef.once('value')
+            const [contributions, months, budgetsData] = await Promise.all([
+                OrgDb.getAll('contributions'),
+                OrgDb.getAll('months'),
+                OrgDb.getAll('budgets')
             ]);
 
-            allContributionsData = contributionsSnapshot.val() || {};
-            const budgetsData = budgetsSnapshot.val() || {};
+            allContributionsData = ContributionMapper.rebuildContributions(contributions, months);
 
             // Check if there's any contribution data
             const hasData = Object.keys(allContributionsData).some(year => {
@@ -622,10 +657,7 @@ const AdminDashboard = (function() {
                    grandTotalOutstanding.toLocaleString() + '","' + 
                    grandTotalContributors.size + '"\n';
             
-            // Get budget data and add expense info
-            const database = FirebaseManager.getDatabase();
-            database.ref('budgets').once('value', (snapshot) => {
-                const budgetsData = snapshot.val() || {};
+            OrgDb.getAll('budgets').then(budgetsData => {
                 const budgetSummary = calculateBudgetSummaryByYear(budgetsData, selectedYear);
                 const balance = grandTotalPaid - budgetSummary.totalExpenses;
                 
@@ -696,10 +728,7 @@ const AdminDashboard = (function() {
             const selectedYear = document.getElementById('year-selector').value;
             const summary = calculateFinancialSummary(allContributionsData, selectedYear);
             
-            // Get budget data for the year
-            const database = FirebaseManager.getDatabase();
-            database.ref('budgets').once('value', (snapshot) => {
-                const budgetsData = snapshot.val() || {};
+            OrgDb.getAll('budgets').then(budgetsData => {
                 const budgetSummary = calculateBudgetSummaryByYear(budgetsData, selectedYear);
                 const balance = summary.totalPaid - budgetSummary.totalExpenses;
             
@@ -832,10 +861,9 @@ const AdminDashboard = (function() {
 
                         // Check admin role
                         try {
-                            const userRef = database.ref(`users/${user.uid}`);
-                            const userSnapshot = await userRef.once('value');
-                            
-                            if (!userSnapshot.exists() || userSnapshot.val().role !== 'admin') {
+                            const membership = await OrgDb.getOne('users', user.uid);
+
+                            if (!membership || membership.role !== 'admin') {
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Access Denied',
