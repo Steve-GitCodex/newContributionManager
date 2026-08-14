@@ -40,10 +40,17 @@
   </div>
 
   <script>
+    // The only place an organization is chosen. The slug is handed to the app through
+    // sessionStorage rather than the URL, so the app opens on a clean address and a
+    // pasted /org-app link cannot select an organization on its own.
     const slug = new URLSearchParams(window.location.search).get('slug');
-    window.location.replace(slug
-      ? `/org-app/index.html?slug=${encodeURIComponent(slug)}`
-      : '/pages/error-pages/no-organization.html');
+
+    if (slug) {
+      sessionStorage.setItem('orgContext', JSON.stringify({ slug }));
+      window.location.replace('/org-app/index.html');
+    } else {
+      window.location.replace('/pages/error-pages/no-organization.html');
+    }
   </script>
 </body>
 </html>

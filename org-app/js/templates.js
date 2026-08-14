@@ -18,7 +18,7 @@ const Templates = {
                 <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 16px; line-height: 1.6;">
                     No contribution data yet. Get started by creating your first month of contributions.
                 </p>
-                <button id="create-first-month-btn" class="btn btn-primary" style="font-size: 16px; padding: 12px 28px;">
+                <button id="create-first-month-btn" data-requires="staff" class="btn btn-primary" style="font-size: 16px; padding: 12px 28px;">
                     <i class="fas fa-plus-circle"></i> Create First Month
                 </button>
             </div>
@@ -39,7 +39,7 @@ const Templates = {
                 <p style="color: var(--text-secondary); margin-bottom: 25px; font-size: 14px; line-height: 1.6;">
                     This month is empty. Get started by clicking the "Add Contribution" button at the top.
                 </p>
-                <button id="add-contribution-empty-state" class="btn btn-primary" style="font-size: 15px; padding: 11px 26px;">
+                <button id="add-contribution-empty-state" data-requires="staff" class="btn btn-primary" style="font-size: 15px; padding: 11px 26px;">
                     <i class="fas fa-plus-circle"></i> Add Contribution
                 </button>
             </div>
@@ -129,7 +129,7 @@ const Templates = {
                 <p style="color: var(--text-secondary); margin-bottom: 30px; font-size: 14px;">
                     Create a campaign to start a special giving initiative
                 </p>
-                <button id="create-campaign-btn-empty" class="btn btn-primary" style="font-size: 16px; padding: 12px 28px;">
+                <button id="create-campaign-btn-empty" data-requires="staff" class="btn btn-primary" style="font-size: 16px; padding: 12px 28px;">
                     <i class="fas fa-plus-circle"></i> Create Campaign
                 </button>
             </div>
@@ -241,14 +241,14 @@ const Templates = {
 
                 <div class="campaign-actions">
                     ${isActive ? `
-                        <button class="btn contribute-btn" data-campaign-id="${campaign.id}">
+                        <button class="btn contribute-btn" data-requires="staff" data-campaign-id="${campaign.id}">
                             <i class="fas fa-hands-helping"></i> Contribute
                         </button>
                     ` : ''}
-                    <button class="btn edit-btn" data-campaign-id="${campaign.id}">
+                    <button class="btn edit-btn" data-requires="staff" data-campaign-id="${campaign.id}">
                         <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button class="btn delete-btn" data-campaign-id="${campaign.id}">
+                    <button class="btn delete-btn" data-requires="staff" data-campaign-id="${campaign.id}">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
@@ -372,9 +372,9 @@ const Templates = {
                     </div>
                 </div>
                 <div class="contributor-actions">
-                    ${!isPaid ? `<button class="pay-contribution-btn" data-contribution-id="${contrib.id}" title="Record payment" style="background: none; border: none; cursor: pointer; color: var(--accent-green); font-size: 16px; padding: 4px 8px;"><i class="fas fa-money-bill-wave"></i></button>` : ''}
-                    <button class="edit-contribution-btn" data-contribution-id="${contrib.id}" title="Edit contribution" style="background: none; border: none; cursor: pointer; color: var(--primary-color); font-size: 16px; padding: 4px 8px;"><i class="fas fa-edit"></i></button>
-                    <button class="delete-contribution-btn" data-contribution-id="${contrib.id}" title="Delete contribution" style="background: none; border: none; cursor: pointer; color: var(--accent-red); font-size: 16px; padding: 4px 8px;"><i class="fas fa-trash"></i></button>
+                    ${!isPaid ? `<button class="pay-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Record payment" style="background: none; border: none; cursor: pointer; color: var(--accent-green); font-size: 16px; padding: 4px 8px;"><i class="fas fa-money-bill-wave"></i></button>` : ''}
+                    <button class="edit-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Edit contribution" style="background: none; border: none; cursor: pointer; color: var(--primary-color); font-size: 16px; padding: 4px 8px;"><i class="fas fa-edit"></i></button>
+                    <button class="delete-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Delete contribution" style="background: none; border: none; cursor: pointer; color: var(--accent-red); font-size: 16px; padding: 4px 8px;"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
         `;
@@ -683,7 +683,7 @@ const Templates = {
                                    placeholder="Optional description">
                         </div>
                         <div class="form-group">
-                            <button id="add-expense-btn" class="btn btn-success">
+                            <button id="add-expense-btn" data-requires="admin" class="btn btn-success">
                                 <i class="fas fa-plus"></i> Add Expense
                             </button>
                         </div>
@@ -747,10 +747,10 @@ const Templates = {
                                         <td>${expense.description || '-'}</td>
                                         <td class="amount">${Number(expense.amount).toLocaleString()}</td>
                                         <td>
-                                            <button class="btn btn-small edit-expense" data-expense-id="${expense.id}" title="Edit">
+                                            <button class="btn btn-small edit-expense" data-requires="admin" data-expense-id="${expense.id}" title="Edit">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button class="btn btn-small delete-expense" data-expense-id="${expense.id}" title="Delete">
+                                            <button class="btn btn-small delete-expense" data-requires="admin" data-expense-id="${expense.id}" title="Delete">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </td>
@@ -775,16 +775,16 @@ const Templates = {
             </span>
         </td>
         <td>
-            <button class="btn btn-small toggle-payment" data-index="${index}">
+            <button class="btn btn-small toggle-payment" data-requires="staff" data-index="${index}">
                 ${item.paid ? '<i class="fas fa-ban"></i> Mark Unpaid' : '<i class="fas fa-check"></i> Mark Paid'}
             </button>
-            <button class="btn btn-small remove-contribution" data-index="${index}">
+            <button class="btn btn-small remove-contribution" data-requires="staff" data-index="${index}">
                 <i class="fas fa-trash"></i> Remove
             </button>
-            <button class="btn btn-small blacklist-member" data-name="${encodeURIComponent(item.name)}">
+            <button class="btn btn-small blacklist-member" data-requires="admin" data-name="${encodeURIComponent(item.name)}">
                 <i class="fas fa-ban"></i> Blacklist
             </button>
-            <button class="btn btn-small edit-contribution" data-index="${index}">
+            <button class="btn btn-small edit-contribution" data-requires="staff" data-index="${index}">
                 <i class="fas fa-edit"></i> Edit
             </button>
         </td>
@@ -812,7 +812,7 @@ const Templates = {
         <td>${index + 1}</td>
         <td>${name}</td>
         <td>
-            <button class="btn btn-small remove-from-blacklist" data-index="${index}">
+            <button class="btn btn-small remove-from-blacklist" data-requires="admin" data-index="${index}">
                 <i class="fas fa-user-plus"></i> Remove
             </button>
         </td>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-role="viewer">
 
 <head>
     <meta charset="UTF-8">
@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="css/special-giving.css">
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/roles.css">
     
     <!-- Theme Manager - Load early to prevent theme flash -->
     <script src="js/theme-manager.js"></script>
@@ -66,7 +67,7 @@
                     <i class="fas fa-chart-bar"></i>
                     <span>Reports</span>
                 </button>
-                <button class="tab-btn" data-view="budget">
+                <button class="tab-btn" data-view="budget" data-requires="admin">
                     <i class="fas fa-wallet"></i>
                     <span>Budget</span>
                 </button>
@@ -88,7 +89,7 @@
             <div id="monthly-view" class="tab-content active">
                 <!-- Compact Action Bar -->
                 <div class="action-bar">
-                    <button id="add-contribution-btn" class="btn btn-primary">
+                    <button id="add-contribution-btn" data-requires="staff" class="btn btn-primary">
                         <i class="fas fa-plus-circle"></i> Add Contribution
                     </button>
                 </div>
@@ -105,7 +106,7 @@
                             <label for="month-select"><i class="far fa-calendar-alt"></i> Month:</label>
                             <select id="month-select"></select>
                         </div>
-                        <button id="create-month-btn" class="btn btn-primary">
+                        <button id="create-month-btn" data-requires="staff" class="btn btn-primary">
                             <i class="fas fa-plus-circle"></i> New Month
                         </button>
                     </div>
@@ -286,7 +287,7 @@
             <div id="special-giving-view" class="tab-content">
                 <section class="contributions">
                     <div class="action-bar">
-                        <button id="create-campaign-btn" class="btn btn-primary">
+                        <button id="create-campaign-btn" data-requires="staff" class="btn btn-primary">
                             <i class="fas fa-plus-circle"></i> Create Campaign
                         </button>
                     </div>
@@ -303,10 +304,10 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="blacklist-name">Member Name</label>
-                                    <input type="text" id="blacklist-name" placeholder="Enter member name">
+                                    <input type="text" id="blacklist-name" data-requires="admin" placeholder="Enter member name">
                                 </div>
                                 <div class="form-group">
-                                    <button id="add-to-blacklist" class="btn btn-danger">
+                                    <button id="add-to-blacklist" data-requires="admin" class="btn btn-danger">
                                         <i class="fas fa-ban"></i> Add to Blacklist
                                     </button>
                                 </div>
@@ -356,14 +357,14 @@
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="expected-member-name">Member Name</label>
-                                    <input type="text" id="expected-member-name" placeholder="Enter member name">
+                                    <input type="text" id="expected-member-name" data-requires="staff" placeholder="Enter member name">
                                 </div>
                                 <div class="form-group">
                                     <label for="expected-member-amount">Expected Amount</label>
-                                    <input type="number" id="expected-member-amount" placeholder="e.g., 1000" min="0">
+                                    <input type="number" id="expected-member-amount" data-requires="staff" placeholder="e.g., 1000" min="0">
                                 </div>
                                 <div class="form-group">
-                                    <button id="add-expected-member" class="btn btn-primary">
+                                    <button id="add-expected-member" data-requires="staff" class="btn btn-primary">
                                         <i class="fas fa-plus"></i> Add Member
                                     </button>
                                 </div>
@@ -467,18 +468,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="../config-central.js"></script>
 
-    <!-- Resolve the organization before firebase-manager.js and org-db.js run -->
+    <!-- Resolve the organization before firebase-manager.js and org-db.js run.
+         Deliberately ignores the query string: an organization is only ever chosen
+         through /pages/organization.html, so a pasted ?slug= cannot open the app. -->
     <script>
         (function () {
-            const urlSlug = new URLSearchParams(window.location.search).get('slug');
-            const cached = JSON.parse(sessionStorage.getItem('orgContext') || 'null');
+            const context = JSON.parse(sessionStorage.getItem('orgContext') || 'null');
 
-            if (urlSlug) {
-                window.orgSlug = urlSlug;
-                window.orgName = cached && cached.slug === urlSlug ? cached.name : null;
-            } else if (cached && cached.slug) {
-                window.orgSlug = cached.slug;
-                window.orgName = cached.name;
+            if (context && context.slug) {
+                window.orgSlug = context.slug;
+                window.orgName = context.name || null;
             } else {
                 window.location.replace('/pages/error-pages/no-organization.html');
             }

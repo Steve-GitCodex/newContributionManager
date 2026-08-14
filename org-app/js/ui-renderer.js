@@ -130,6 +130,7 @@ const UIRenderer = (function() {
             
             const btn = document.createElement('button');
             btn.id = 'create-custom-month-btn';
+            btn.dataset.requires = 'staff';
             btn.className = 'btn btn-primary';
             btn.style.marginLeft = '10px';
             btn.innerHTML = '<i class="fas fa-plus"></i> Create Month';
@@ -149,6 +150,7 @@ const UIRenderer = (function() {
             
             const btn = document.createElement('button');
             btn.id = 'clone-month-btn';
+            btn.dataset.requires = 'staff';
             btn.className = 'btn btn-primary';
             btn.style.marginLeft = '10px';
             btn.innerHTML = '<i class="fas fa-copy"></i> Clone to Next Month';
@@ -425,10 +427,11 @@ const UIRenderer = (function() {
                     try {
                         // Clone the month data
                         const sourceData = state.contributionsData[sourceYear][sourceMonth];
-                        const clonedContributions = sourceData.contributions.map(contrib => ({
-                            ...contrib,
-                            paid: false  // Mark as unpaid in cloned month
-                        }));
+                        // Drop the source ids: keeping them would rewrite the source month's
+                        // own documents into the target month and empty the source.
+                        const clonedContributions = sourceData.contributions.map(
+                            ({ id, createdAt, createdBy, ...rest }) => ({ ...rest, paid: false })
+                        );
                         
                         // Ensure target year exists
                         if (!state.contributionsData[targetYear]) {
@@ -664,46 +667,11 @@ const UIRenderer = (function() {
             }
         },
 
-        // Apply role-based UI restrictions
+        // Publishes the role to CSS. Everything gated carries data-requires, so content
+        // rendered later is restricted without this being called again.
         applyRoleRestrictions(userRole) {
-            const dom = DOMManager.getAll();
-            const isAdmin = userRole === 'admin';
-            const isStaff = userRole === 'admin' || userRole === 'editor';
-
-            const editorElements = [
-                dom.contributionSection,
-                dom.contributionForm,
-                dom.createMonthBtn,
-                dom.actionSection
-            ];
-
-            const adminElements = [
-                ...document.querySelectorAll('.blacklist-member'),
-                dom.blacklistNameInput,
-                dom.addToBlacklistBtn
-            ];
-
-            // Hide/show budget tab based on admin role
-            const budgetTabBtn = document.querySelector('[data-view="budget"]');
-            if (budgetTabBtn) {
-                budgetTabBtn.style.display = isAdmin ? 'flex' : 'none';
-            }
-
-            if (!isStaff) {
-                editorElements.forEach(el => { if (el) el.style.display = 'none'; });
-            }
-
-            if (!isAdmin) {
-                adminElements.forEach(el => { if (el) el.style.display = 'none'; });
-            }
-
-            document.querySelectorAll('.toggle-payment, .remove-contribution, .edit-contribution').forEach(el => {
-                if (!isStaff) el.style.display = 'none';
-            });
-
-            document.querySelectorAll('.remove-from-blacklist').forEach(el => {
-                if (!isAdmin) el.style.display = 'none';
-            });
+            const role = ['admin', 'editor', 'viewer'].includes(userRole) ? userRole : 'viewer';
+            document.documentElement.dataset.role = role;
         },
 
         // Render special giving campaigns

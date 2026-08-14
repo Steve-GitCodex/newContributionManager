@@ -1,0 +1,9 @@
+/* Role gating is declarative so that markup rendered after login — campaign cards,
+   contribution rows, expected members — is governed without re-running any code.
+   AuthModule sets data-role on <html>; controls declare what they need. */
+
+[data-role="viewer"] [data-requires~="staff"],
+[data-role="viewer"] [data-requires~="admin"],
+[data-role="editor"] [data-requires~="admin"] {
+    display: none !important;
+}

@@ -205,32 +205,58 @@ This also fixed a latent bug: `pages/organization.html` never loaded
 `config-generated.js`, so it had been falling back to the placeholder API key.
 
 ### Still open
-- [ ] **`tests/unit/app-initializer.test.js`, `service-container.test.js` and
-      `setup-status.test.js` also test copies rather than the real modules.** Left in
-      place because, unlike the four deleted, they have no real counterpart — deleting
-      them would remove the only coverage those modules have. They should be rewritten to
-      import the real source.
 - [ ] **Password change.** Members are given a starter password by an admin and there is
-      no in-app way to change it.
+      no in-app way to change it. Firebase's password-reset email is the cheap fix.
 - [ ] **Removing a member** is not possible from the UI; roles can be changed but not
-      revoked.
+      revoked, so a departing member keeps access until someone edits Firestore by hand.
+- [ ] **Email enumeration.** Signup must stay enabled at the project level because
+      `MemberInvite` provisions accounts with the client SDK, so
+      `auth/email-already-in-use` reveals whether an address is registered — regardless of
+      any UI wording. Mitigate by restricting the API key to the deployed origin and
+      enabling Email Enumeration Protection. Closing it properly means moving invites to
+      the Admin SDK, which needs the Blaze plan.
+
+### UX and access fixes (done, after Phase 3)
+- [x] **Login failure hung forever.** `Swal.close()` sat after the `await`, the call passed
+      `showUI: false`, and the error code was unmapped. Probing the live project showed SDK
+      9.22 returns `auth/invalid-login-credentials` (12.x returns `auth/invalid-credential`)
+      — both now map, to an identical message so a login never reveals whether an email is
+      registered. Raw `error.message` no longer reaches the user on the superadmin login or
+      setup pages.
+- [x] **Signup form removed** from the org app; accounts come from the invite flow.
+- [x] **Role gating rewritten declaratively.** The old `applyRoleRestrictions` hid a fixed
+      list of elements at three moments, so anything rendered later was never restricted —
+      and two of its four targets (`.add-contribution`, `.actions`) did not exist in the
+      markup at all. Now `data-role` on `<html>` plus `data-requires` on controls, enforced
+      by `css/roles.css`. 23 staff + 8 admin attributes, 2 via `dataset.requires`.
+      **A first pass missed 9 controls** — including the per-row Blacklist button and the
+      Create/Clone Month buttons built with `createElement` — because the test enumerated
+      what had been tagged rather than what exists. The test now scans the source for
+      mutating verbs and fails on any ungated control; verified it detects a removed gate.
+- [x] **Org entry hardened.** `pages/organization.html` is the only page that reads a slug
+      from a URL; it hands over via `sessionStorage` and the app opens on a clean
+      `/org-app/index.html`. A pasted `?slug=` cannot select an organization. The entry page
+      carries no Firebase SDK, so this costs nothing. Navigation hygiene, not access control.
 
 ### Correctness and cost
-- [ ] **Lossy round-trip.** `rebuildYearMonthStructure` reads back only name/amount/paid,
-      so `notes`, `createdBy` and `createdAt` are nulled on every save.
-- [ ] **N+1 reads** in `loadCampaigns` and `buildCampaignUpdates`.
+- [x] **Lossy round-trip fixed.** `ContributionMapper` carries `notes`, `createdAt` and
+      `createdBy` through flatten → rebuild → flatten, with a test asserting it.
+- [x] **N+1 reads fixed.** `loadCampaigns` and the campaign write path now read whole
+      collections once; no `await` remains inside a loop in either adapter.
 - [ ] **Startup loads everything** — 247 documents per launch. Firestore bills per document
       read. Fine on Spark's 50k/day, but the access pattern wants per-month queries.
 - [ ] **Budget scoping mismatch.** The app reads `budgets/{uid}`; the admin dashboard
       aggregates the whole `budgets` collection. Predates this work.
 
 ### Cleanup
-- [ ] `js/pages/landing.js:55` reads `superadminUsers` from the **Realtime Database**, but
-      that collection only exists in Firestore. Dead or broken path.
-- [ ] `org-app/firebase.rules` declares `users` twice; the second silently overrides the
-      first, disabling role validation. Moot once RTDB is retired.
-- [ ] `firestore.rules` in the repo had drifted from what was actually deployed. Keep them
-      in sync from now on.
-- [ ] Pre-existing hook violations: oversized comment blocks in `auth.js` and
-      `firebase-manager.js`; `event-handlers.js` (1415 lines), `templates.js` (824),
-      `auth.js` (538) all past the ~400-line limit.
+- [x] `js/pages/landing.js` deleted — the RTDB `superadminUsers` read went with it.
+- [x] `org-app/firebase.rules` deleted — the duplicate `users` key is moot.
+- [x] `firestore.rules` is back in sync with what is deployed, and was deployed *from* the
+      repo. Keep it that way: deploy rules from the repo, never edit them in the console.
+- [ ] **Oversized files.** `event-handlers.js` (1414 lines) and `templates.js` (823) are
+      well past the ~400-line limit; `ui-renderer.js` (699) too. `auth.js` is down to 420
+      from 538. Splitting these is the largest remaining tidy-up.
+- [ ] `tests/unit/app-initializer.test.js`, `service-container.test.js` and
+      `setup-status.test.js` test copies rather than the real modules. They have no real
+      counterpart, so deleting them would drop those modules to zero coverage; they need
+      rewriting to import the actual source.

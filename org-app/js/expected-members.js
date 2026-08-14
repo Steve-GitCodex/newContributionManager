@@ -132,10 +132,10 @@ const ExpectedMembersManager = (function() {
                     <td><strong>${Utils.sanitizeHTML(memberName)}</strong></td>
                     <td>${monthlyAmount.toLocaleString()}/= per month</td>
                     <td>
-                        <button class="btn btn-primary btn-sm edit-expected-member" data-member="${Utils.sanitizeHTML(memberName)}" data-amount="${monthlyAmount}">
+                        <button class="btn btn-primary btn-sm edit-expected-member" data-requires="staff" data-member="${Utils.sanitizeHTML(memberName)}" data-amount="${monthlyAmount}">
                             <i class="fas fa-edit"></i> Edit
                         </button>
-                        <button class="btn btn-danger btn-sm remove-expected-member" data-member="${Utils.sanitizeHTML(memberName)}">
+                        <button class="btn btn-danger btn-sm remove-expected-member" data-requires="staff" data-member="${Utils.sanitizeHTML(memberName)}">
                             <i class="fas fa-trash"></i> Remove
                         </button>
                     </td>

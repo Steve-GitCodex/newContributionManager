@@ -14,7 +14,7 @@
     if (match && match[1]) {
       const slug = match[1];
       // Redirect to the actual organization page with slug in URL
-      window.location.href = `/org-app/index.html?slug=${encodeURIComponent(slug)}`;
+      window.location.href = `/pages/organization.html?slug=${encodeURIComponent(slug)}`;
     } else {
       // No slug found, go to login
       window.location.href = '/pages/superadmin/login.html';

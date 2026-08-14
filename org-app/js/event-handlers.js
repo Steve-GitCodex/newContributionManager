@@ -805,13 +805,13 @@ const EventHandlers = (function () {
                                             ${contrib.notes ? `<div class="contributor-note">"${contrib.notes}"</div>` : ''}
                                         </div>
                                         <div class="contributor-actions">
-                                            <button class="pay-contribution-btn" data-contribution-id="${contrib.id}" title="Record payment" style="background: none; border: none; cursor: pointer; color: var(--accent-green); font-size: 16px; padding: 4px 8px;">
+                                            <button class="pay-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Record payment" style="background: none; border: none; cursor: pointer; color: var(--accent-green); font-size: 16px; padding: 4px 8px;">
                                                 <i class="fas fa-dollar-sign"></i>
                                             </button>
-                                            <button class="edit-contribution-btn" data-contribution-id="${contrib.id}" title="Edit contribution" style="background: none; border: none; cursor: pointer; color: #3498db; font-size: 16px; padding: 4px 8px;">
+                                            <button class="edit-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Edit contribution" style="background: none; border: none; cursor: pointer; color: #3498db; font-size: 16px; padding: 4px 8px;">
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
-                                            <button class="delete-contribution-btn" data-contribution-id="${contrib.id}" title="Delete contribution" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 16px; padding: 4px 8px;">
+                                            <button class="delete-contribution-btn" data-requires="staff" data-contribution-id="${contrib.id}" title="Delete contribution" style="background: none; border: none; cursor: pointer; color: #e74c3c; font-size: 16px; padding: 4px 8px;">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </div>

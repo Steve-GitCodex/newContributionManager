@@ -99,7 +99,7 @@ function renderPage() {
     // Render grid
     container.className = 'orgs-grid';
     container.innerHTML = pageOrgs.map(org => `
-        <a href="/org-app/index.html?slug=${encodeURIComponent(org.slug)}" class="org-card">
+        <a href="/pages/organization.html?slug=${encodeURIComponent(org.slug)}" class="org-card">
             <div class="org-header">
                 <div class="org-avatar">${sanitizeHTML(org.name.charAt(0).toUpperCase())}</div>
                 <div class="org-info">
