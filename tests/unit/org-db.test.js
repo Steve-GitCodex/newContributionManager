@@ -21,21 +21,43 @@ function makeFirestore() {
         update: vi.fn()
     });
 
-    const collectionHandle = (path) => ({
-        path,
-        doc: id => {
-            calls.doc.push(`${path}/${id}`);
-            return docHandle(`${path}/${id}`);
-        },
-        get: async () => ({
-            forEach: fn => {
-                for (const [key, value] of snapshots) {
-                    const parent = key.slice(0, key.lastIndexOf('/'));
-                    if (parent === path) fn({ id: key.slice(parent.length + 1), data: () => value });
+    const collectionHandle = (path) => {
+        const handle = {
+            path,
+            doc: id => {
+                calls.doc.push(`${path}/${id}`);
+                return docHandle(`${path}/${id}`);
+            },
+            get: async () => ({
+                forEach: fn => {
+                    for (const [key, value] of snapshots) {
+                        const parent = key.slice(0, key.lastIndexOf('/'));
+                        if (parent === path) fn({ id: key.slice(parent.length + 1), data: () => value });
+                    }
                 }
+            }),
+            orderBy: () => {
+                let lower = '';
+                let upper = '';
+                const ranged = {
+                    startAt: value => { lower = value; return ranged; },
+                    endAt: value => { upper = value; return ranged; },
+                    get: async () => ({
+                        forEach: fn => {
+                            for (const [key, value] of snapshots) {
+                                const parent = key.slice(0, key.lastIndexOf('/'));
+                                if (parent !== path) continue;
+                                const id = key.slice(parent.length + 1);
+                                if (id >= lower && id <= upper) fn({ id, data: () => value });
+                            }
+                        }
+                    })
+                };
+                return ranged;
             }
-        })
-    });
+        };
+        return handle;
+    };
 
     return {
         calls,
@@ -135,5 +157,47 @@ describe('OrgDb', () => {
 
     it('exposes a batch from the same firestore instance', () => {
         expect(orgDb.batch()).toEqual({ marker: 'batch' });
+    });
+
+    it('fetches only the documents whose id starts with the prefix', async () => {
+        const { firestore, snapshots } = makeFirestore();
+        snapshots.set('organizations/acme/contributions/2026-03-angela', { amount: 100 });
+        snapshots.set('organizations/acme/contributions/2026-03-joel', { amount: 200 });
+        snapshots.set('organizations/acme/contributions/2026-04-angela', { amount: 300 });
+
+        const db = loadOrgDb(firestore);
+        db.setSlug('acme');
+
+        const result = await db.getRange('contributions', '2026-03-');
+
+        expect(Object.keys(result).sort()).toEqual(['2026-03-angela', '2026-03-joel']);
+        expect(result['2026-03-angela']).toEqual({ amount: 100 });
+    });
+
+    it('does not let a one-digit month prefix match a two-digit month', async () => {
+        const { firestore, snapshots } = makeFirestore();
+        snapshots.set('organizations/acme/contributions/2026-01-angela', { amount: 100 });
+        snapshots.set('organizations/acme/contributions/2026-10-angela', { amount: 200 });
+
+        const db = loadOrgDb(firestore);
+        db.setSlug('acme');
+
+        const result = await db.getRange('contributions', '2026-1');
+
+        expect(Object.keys(result)).toEqual(['2026-10-angela']);
+    });
+
+    it('fetches a whole year with a year prefix', async () => {
+        const { firestore, snapshots } = makeFirestore();
+        snapshots.set('organizations/acme/contributions/2025-12-angela', { amount: 50 });
+        snapshots.set('organizations/acme/contributions/2026-01-angela', { amount: 100 });
+        snapshots.set('organizations/acme/contributions/2026-11-joel', { amount: 200 });
+
+        const db = loadOrgDb(firestore);
+        db.setSlug('acme');
+
+        const result = await db.getRange('contributions', '2026-');
+
+        expect(Object.keys(result).sort()).toEqual(['2026-01-angela', '2026-11-joel']);
     });
 });

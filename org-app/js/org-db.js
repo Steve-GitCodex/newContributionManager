@@ -36,6 +36,18 @@ const OrgDb = (function () {
         return result;
     }
 
+    async function getRange(name, prefix) {
+        const snapshot = await collection(name)
+            .orderBy(firebase.firestore.FieldPath.documentId())
+            .startAt(prefix)
+            .endAt(`${prefix}`)
+            .get();
+
+        const result = {};
+        snapshot.forEach(entry => { result[entry.id] = entry.data(); });
+        return result;
+    }
+
     async function getOne(name, id) {
         const snapshot = await doc(name, id).get();
         return snapshot.exists ? snapshot.data() : null;
@@ -49,7 +61,7 @@ const OrgDb = (function () {
         return FirebaseManager.getFirestore().batch();
     }
 
-    return { BUDGET_ID, setSlug, getSlug, orgDoc, collection, doc, getAll, getOne, setOne, batch };
+    return { BUDGET_ID, setSlug, getSlug, orgDoc, collection, doc, getAll, getRange, getOne, setOne, batch };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {

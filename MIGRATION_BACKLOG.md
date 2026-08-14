@@ -323,8 +323,37 @@ This also fixed a latent bug: `pages/organization.html` never loaded
       `createdBy` through flatten → rebuild → flatten, with a test asserting it.
 - [x] **N+1 reads fixed.** `loadCampaigns` and the campaign write path now read whole
       collections once; no `await` remains inside a loop in either adapter.
-- [ ] **Startup loads everything** — 247 documents per launch. Firestore bills per document
-      read. Fine on Spark's 50k/day, but the access pattern wants per-month queries.
+- [x] **Startup loads everything** — Phase 2's verification recorded 247 contributions
+      across 19 months; the collection has since grown to 273 across 21 months, which is
+      what this measurement reads live, not a correction of that earlier count. Tasks 1-9
+      moved the org app from `loadAll()` to per-period range queries (`OrgDb.getRange`) and
+      diff-based writes that skip a document unless it changed.
+      `scripts/measure-scoped-loading.js` counts live Firestore data to check the claim
+      rather than trusting the design intent, and models what `app.js`'s `loadData`
+      actually does: it hydrates both the current month and, via
+      `ViewManager.locatePreviousMonth`, the nearest earlier month present in the `months`
+      index, so the script issues both range queries and reports them separately. Against
+      `aic-isovya-praise`: 305 old-startup documents down to 58 new-startup documents (13
+      for the current month, August, plus 13 for the previous, July) — an 81% reduction.
+
+      This is a document-count estimate assembled from collection sizes and range queries
+      against live production data, not an instrumented trace of the running app — it says
+      what a startup *would* read, not what one actually read over the wire.
+
+      Two things this script cannot check, and neither is verified yet:
+      - **That a no-op save writes nothing.** The diff-write only skips a document if the
+        stored shape is field-identical to what `ContributionMapper.flattenContributions`
+        produces. If the migration wrote a field the mapper drops, the first save rewrites
+        every record instead of none. Requires the Network tab in a real browser session
+        (task-10-brief.md Step 3) — **not done**.
+      - **That partial loading never deletes.** Toggling a row in one month and saving must
+        leave every other month's document count unchanged, in both the current month and
+        an old one. Requires a throwaway seeded org and a real session (task-10-brief.md
+        Step 4) — **not done**.
+
+      The oft-repeated "a paid toggle costs 2 writes" figure is **not measured by this
+      script** — it is a consequence of the same field-identity assumption above and stays
+      unverified until Step 3 runs in a browser.
 - [x] **Budget scoping mismatch fixed.** The app read `budgets/{uid}` while the admin
       dashboard aggregated the whole collection, so each admin saw only the expenses they
       had entered, measured against the *whole org's* income. Expenses are org money, so

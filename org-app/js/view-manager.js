@@ -13,6 +13,8 @@ const ViewManager = (function() {
     // Injected event handler callbacks (kept separate from data state)
     let _eventHandlers = null;
 
+    let renderGeneration = 0;
+
     return {
         // Initialize view manager with state
         init(stateObj, eventHandlers) {
@@ -43,15 +45,24 @@ const ViewManager = (function() {
             // Perform view-specific actions
             if (newView === 'reports') {
                 const reportsDom = DOMManager.getReportsViewElements();
-                // Update member select dropdown
-                ReportsManager.updateMemberSelect(state.contributionsData, reportsDom.reportMemberSelect);
                 // Trigger initial report type change to show/hide appropriate filters
                 ReportsManager.handleReportTypeChange(reportsDom.reportTypeSelect, reportsDom.memberSelectGroup, reportsDom.statusFilterGroup);
+                if (reportsDom.generateReportBtn) reportsDom.generateReportBtn.disabled = true;
             }
 
             // Update display
             this.updateDisplay().catch(error => {
                 console.error('Error updating display:', error);
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Could not load this view',
+                    text: 'Your connection may have dropped. Some data is not available.',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 4000,
+                    showConfirmButton: false
+                });
             });
         },
 
@@ -74,8 +85,7 @@ const ViewManager = (function() {
 
         // Update display based on current view
         async updateDisplay() {
-            // Always refresh report filters in the background (even if not currently viewing reports)
-            // This ensures they're up-to-date when user switches to reports tab
+            const myRenderGeneration = ++renderGeneration;
             const reportsDom = DOMManager.getReportsViewElements();
             if (reportsDom.reportStartMonth && reportsDom.reportStartYear) {
                 ReportsManager.populateReportFilters(
@@ -87,7 +97,6 @@ const ViewManager = (function() {
                     state.currentYear,
                     state.contributionsData
                 );
-                ReportsManager.updateMemberSelect(state.contributionsData, reportsDom.reportMemberSelect);
             }
             
             // Check if there are ANY years in the data (not whether they have contributions)
@@ -130,6 +139,7 @@ const ViewManager = (function() {
                         const totalIncome = BudgetManager.calculateBudgetFromIncome({});
                         BudgetManager.renderBudgetUI(budgetDom, state.budgetData, totalIncome);
                         setTimeout(() => {
+                            if (myRenderGeneration !== renderGeneration) return;
                             BudgetHandlers.setup();
                         }, 100);
                     } else {
@@ -142,11 +152,13 @@ const ViewManager = (function() {
                     if (campaigns && campaigns.length > 0) {
                         UIRenderer.renderSpecialGivingView(campaigns);
                         setTimeout(() => {
+                            if (myRenderGeneration !== renderGeneration) return;
                             CampaignHandlers.setup();
                         }, 100);
                     } else {
                         UIRenderer.renderSpecialGivingEmptyState();
                         setTimeout(() => {
+                            if (myRenderGeneration !== renderGeneration) return;
                             CampaignHandlers.setup();
                         }, 100);
                     }
@@ -163,6 +175,9 @@ const ViewManager = (function() {
             UIRenderer.hideMainEmptyState();
             
             if (state.currentView === 'monthly') {
+                await LoadedScope.ensureMonth(state.currentYear, state.currentMonth);
+                if (myRenderGeneration !== renderGeneration) return;
+                LoadedScope.requireLoaded(state.currentYear, state.currentMonth);
 
                 UIRenderer.renderMonthlyView(
                     state.contributionsData,
@@ -172,13 +187,18 @@ const ViewManager = (function() {
                 );
                 // Add "Create Month" button to action bar
                 setTimeout(() => {
+                    if (myRenderGeneration !== renderGeneration) return;
                     UIRenderer.addCreateMonthButton();
                 }, 100);
             } else if (state.currentView === 'yearly') {
+                await LoadedScope.ensureYear(state.currentYear);
+                if (myRenderGeneration !== renderGeneration) return;
+                LoadedScope.requireYear(state.currentYear);
+
                 UIRenderer.renderYearlyView(state.contributionsData, state.currentYear);
             } else if (state.currentView === 'blacklist') {
-                const hasMembersBlacklisted = state.blacklistData && 
-                    state.blacklistData.blacklistedMembers && 
+                const hasMembersBlacklisted = state.blacklistData &&
+                    state.blacklistData.blacklistedMembers &&
                     state.blacklistData.blacklistedMembers.length > 0;
                 if (hasMembersBlacklisted) {
                     UIRenderer.renderBlacklistView(state.blacklistData, _eventHandlers);
@@ -186,27 +206,41 @@ const ViewManager = (function() {
                     UIRenderer.renderBlacklistEmptyState();
                 }
             } else if (state.currentView === 'budget') {
+                await LoadedScope.ensureAll();
+                if (myRenderGeneration !== renderGeneration) return;
+                LoadedScope.requireAll();
+
                 const budgetDom = { budgetContent: document.getElementById('budget-content') };
                 const totalIncome = BudgetManager.calculateBudgetFromIncome(state.contributionsData);
                 BudgetManager.renderBudgetUI(budgetDom, state.budgetData, totalIncome);
                 setTimeout(() => {
+                    if (myRenderGeneration !== renderGeneration) return;
                     BudgetHandlers.setup();
                 }, 100);
             } else if (state.currentView === 'reports') {
-                // When switching to reports tab with data, hide empty state and handle visibility
+                const reportsViewDom = DOMManager.getReportsViewElements();
+                if (reportsViewDom.generateReportBtn) reportsViewDom.generateReportBtn.disabled = true;
+
+                await LoadedScope.ensureAll();
+                if (myRenderGeneration !== renderGeneration) return;
+                LoadedScope.requireAll();
+
                 UIRenderer.hideReportsEmptyState();
-                const reportsDom = DOMManager.getReportsViewElements();
-                ReportsManager.handleReportTypeChange(reportsDom.reportTypeSelect, reportsDom.memberSelectGroup, reportsDom.statusFilterGroup);
+                if (reportsViewDom.generateReportBtn) reportsViewDom.generateReportBtn.disabled = false;
+                ReportsManager.updateMemberSelect(state.contributionsData, reportsViewDom.reportMemberSelect);
+                ReportsManager.handleReportTypeChange(reportsViewDom.reportTypeSelect, reportsViewDom.memberSelectGroup, reportsViewDom.statusFilterGroup);
             } else if (state.currentView === 'special-giving') {
                 const campaigns = SpecialGivingManager.getAllCampaigns(state.campaignsData);
                 if (campaigns && campaigns.length > 0) {
                     UIRenderer.renderSpecialGivingView(campaigns);
                     setTimeout(() => {
+                        if (myRenderGeneration !== renderGeneration) return;
                         CampaignHandlers.setup();
                     }, 100);
                 } else {
                     UIRenderer.renderSpecialGivingEmptyState();
                     setTimeout(() => {
+                        if (myRenderGeneration !== renderGeneration) return;
                         CampaignHandlers.setup();
                     }, 100);
                 }
@@ -218,6 +252,9 @@ const ViewManager = (function() {
 
         // Handle period change (year/month selection)
         handlePeriodChange(newYear, newMonth) {
+            const previousYear = state.currentYear;
+            const previousMonth = state.currentMonth;
+
             state.currentYear = newYear;
             state.currentMonth = newMonth;
 
@@ -226,16 +263,43 @@ const ViewManager = (function() {
                 state.contributionsData[newYear] = {};
             }
 
-            this.updateDisplay().catch(error => {
+            const updatePromise = this.updateDisplay();
+            const myRenderGeneration = renderGeneration;
+
+            updatePromise.catch(error => {
+                if (myRenderGeneration !== renderGeneration) return;
+
                 console.error('Error updating display:', error);
+                state.currentYear = previousYear;
+                state.currentMonth = previousMonth;
+
+                const dom = DOMManager.getAll();
+                if (dom.yearSelect) {
+                    Utils.populateYearSelect(dom.yearSelect, previousYear, state.contributionsData);
+                }
+                if (dom.monthSelect) {
+                    Utils.populateMonthSelect(dom.monthSelect, previousMonth, state.contributionsData, previousYear);
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Could not load that period',
+                    text: 'Your connection may have dropped. The previous period is still shown.',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 4000,
+                    showConfirmButton: false
+                });
             });
         },
 
         // Handle create month
-        handleCreateMonth(previousMonthData, monthExists, overwrite) {
+        async handleCreateMonth(previousMonthData, monthExists, overwrite) {
             if (!state.contributionsData[state.currentYear]) {
                 state.contributionsData[state.currentYear] = {};
             }
+
+            await LoadedScope.ensureMonth(state.currentYear, state.currentMonth);
 
             let result = { newMembersAdded: 0 };
 
@@ -247,38 +311,59 @@ const ViewManager = (function() {
                 );
                 state.contributionsData[state.currentYear][state.currentMonth] = result.data;
             } else {
-                state.contributionsData[state.currentYear][state.currentMonth] = 
+                state.contributionsData[state.currentYear][state.currentMonth] =
                     ContributionsManager.createMonthDataFromPrevious(previousMonthData, state.blacklistData);
             }
 
             return result;
         },
 
+        // Nearest earlier month present in the blob, mirroring ContributionsManager.findPreviousMonthData's
+        // selection so callers can hydrate that month before findPreviousMonthData reads its rows.
+        locatePreviousMonth(year, monthName) {
+            const months = moment.months();
+
+            for (let index = months.indexOf(monthName) - 1; index >= 0; index--) {
+                if (state.contributionsData[year]?.[months[index]]) return { year, monthName: months[index] };
+            }
+
+            const earlier = String(parseInt(year, 10) - 1);
+            if (state.contributionsData[earlier]?.December) return { year: earlier, monthName: 'December' };
+
+            return null;
+        },
+
         // Check and create current month if needed
-        checkAndCreateCurrentMonth() {
+        async checkAndCreateCurrentMonth() {
             // SAFETY: Never auto-create a year if there's no data in the system at all
             if (!UIRenderer.hasAnyYears(state.contributionsData)) {
                 return false; // No data exists, don't create anything
             }
-            
+
             if (!state.contributionsData[state.currentYear]) {
                 state.contributionsData[state.currentYear] = {};
             }
 
             if (!state.contributionsData[state.currentYear][state.currentMonth]) {
+                const source = this.locatePreviousMonth(state.currentYear, state.currentMonth);
+                if (source) {
+                    await LoadedScope.ensureMonth(source.year, source.monthName);
+                    LoadedScope.requireLoaded(source.year, source.monthName);
+                }
+
                 const previousMonthData = ContributionsManager.findPreviousMonthData(
                     state.contributionsData,
                     state.currentYear,
                     state.currentMonth
                 );
-                
+
                 // Only auto-create a month if the previous month has contributions
                 if (previousMonthData && previousMonthData.contributions && previousMonthData.contributions.length > 0) {
-                    state.contributionsData[state.currentYear][state.currentMonth] = 
+                    state.contributionsData[state.currentYear][state.currentMonth] =
                         ContributionsManager.createMonthDataFromPrevious(previousMonthData, state.blacklistData);
                     return true; // Month was created
                 }
-                
+
                 return false; // Month not created (previous month has no contributions)
             }
             return false; // Month already exists
@@ -292,7 +377,24 @@ const ViewManager = (function() {
         // Generate report
         generateReport() {
             const dom = DOMManager.getReportsViewElements();
-            
+
+            try {
+                LoadedScope.requireAll();
+            } catch (error) {
+                console.error('Refusing to report on a partial history:', error);
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Contribution history is still loading',
+                    text: 'A report cannot be generated until every month has loaded.',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 4000,
+                    showConfirmButton: false
+                });
+                return;
+            }
+
             const reportData = ReportsManager.generateReport(
                 dom.reportTypeSelect,
                 dom.reportMemberSelect,

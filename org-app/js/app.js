@@ -78,18 +78,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Data operations
     async function loadData() {
-        const startTime = performance.now();
         try {
-            const data = await DataAdapter.loadAll();
-            
+            const data = await DataAdapter.loadInitial();
+
             appState.contributionsData = data.contributionsData;
             appState.blacklistData = data.blacklistData;
             appState.budgetData = data.budgetData || { expenses: {} };
             appState.campaignsData = data.campaignsData || {};
             FirebaseManager.setLastSyncTime(data.lastSyncTime);
             Utils.updateSyncStatus(data.lastSyncTime);
-            
+
             initializeCurrentMonthAndYear();
+            await LoadedScope.ensureMonth(appState.currentYear, appState.currentMonth);
+
+            const previous = ViewManager.locatePreviousMonth(appState.currentYear, appState.currentMonth);
+            if (previous) await LoadedScope.ensureMonth(previous.year, previous.monthName);
+
             hideLoadingSpinner();
         } catch (error) {
             console.error('Failed to load data:', error);
@@ -200,14 +204,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function syncData() {
-        const startTime = performance.now();
         try {
-            const data = await DataAdapter.loadAll();
+            const data = await DataAdapter.loadInitial();
             appState.contributionsData = data.contributionsData;
             appState.blacklistData = data.blacklistData;
             appState.budgetData = data.budgetData || { expenses: {} };
             appState.campaignsData = data.campaignsData || {};
-            
+
+            await LoadedScope.ensureMonth(appState.currentYear, appState.currentMonth);
+
             Utils.populateYearSelect(dom.yearSelect, appState.currentYear, appState.contributionsData);
             Utils.populateMonthSelect(dom.monthSelect, appState.currentMonth, appState.contributionsData, appState.currentYear);
             
@@ -297,13 +302,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 appState.currentView = view;
                 Utils.saveCurrentView(view); // Save view preference
                 ViewManager.handleViewChange(view);
-                
-                // Setup budget event handlers if viewing budget tab
-                if (view === 'budget') {
-                    setTimeout(() => {
-                        BudgetHandlers.setup();
-                    }, 100);
-                }
 
                 // Setup special giving event handlers if viewing special-giving tab
                 if (view === 'special-giving') {
@@ -321,7 +319,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 appState.currentYear = newYear;
                 
                 // Refresh month selector for the new year
-                // First get the available months for this year
                 const yearData = appState.contributionsData[newYear] || {};
                 const allMonths = moment.months();
                 const monthsInYear = allMonths.filter(month => yearData[month]);
@@ -370,12 +367,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Create month button
         if (dom.createMonthBtn) {
-            dom.createMonthBtn.addEventListener('click', (e) => {
+            dom.createMonthBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const monthExists = !!appState.contributionsData[appState.currentYear]?.[appState.currentMonth];
 
+            async function hydrateSourceMonth() {
+                const source = ViewManager.locatePreviousMonth(appState.currentYear, appState.currentMonth);
+                if (source) {
+                    await LoadedScope.ensureMonth(source.year, source.monthName);
+                    LoadedScope.requireLoaded(source.year, source.monthName);
+                }
+            }
+
             if (monthExists) {
-                Swal.fire({
+                const result = await Swal.fire({
                     icon: 'question',
                     title: 'Month Already Exists',
                     text: `${appState.currentMonth} ${appState.currentYear} already exists. What would you like to do?`,
@@ -384,47 +389,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                     confirmButtonText: 'Overwrite completely',
                     denyButtonText: 'Add new members only',
                     cancelButtonText: 'Cancel'
-                }).then((result) => {
-                    if (result.isConfirmed || result.isDenied) {
-                        const previousMonthData = ContributionsManager.findPreviousMonthData(
-                            appState.contributionsData,
-                            appState.currentYear,
-                            appState.currentMonth
-                        );
-                        const createResult = ViewManager.handleCreateMonth(
-                            previousMonthData,
-                            monthExists,
-                            result.isConfirmed
-                        );
-                        
-                        saveData(true);
-                        updateDisplay();
-
-                        if (result.isDenied) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Month Updated',
-                                text: `Added ${createResult.newMembersAdded} new member${createResult.newMembersAdded !== 1 ? 's' : ''} to ${appState.currentMonth} ${appState.currentYear}.`
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Month Overwritten',
-                                text: `${appState.currentMonth} ${appState.currentYear} has been overwritten successfully.`
-                            });
-                        }
-                    }
                 });
+
+                if (result.isConfirmed || result.isDenied) {
+                    await hydrateSourceMonth();
+                    const previousMonthData = ContributionsManager.findPreviousMonthData(
+                        appState.contributionsData,
+                        appState.currentYear,
+                        appState.currentMonth
+                    );
+                    const createResult = await ViewManager.handleCreateMonth(
+                        previousMonthData,
+                        monthExists,
+                        result.isConfirmed
+                    );
+
+                    saveData(true);
+                    updateDisplay();
+
+                    if (result.isDenied) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Month Updated',
+                            text: `Added ${createResult.newMembersAdded} new member${createResult.newMembersAdded !== 1 ? 's' : ''} to ${appState.currentMonth} ${appState.currentYear}.`
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Month Overwritten',
+                            text: `${appState.currentMonth} ${appState.currentYear} has been overwritten successfully.`
+                        });
+                    }
+                }
             } else {
+                await hydrateSourceMonth();
                 const previousMonthData = ContributionsManager.findPreviousMonthData(
                     appState.contributionsData,
                     appState.currentYear,
                     appState.currentMonth
                 );
-                ViewManager.handleCreateMonth(previousMonthData, false, true);
+                await ViewManager.handleCreateMonth(previousMonthData, false, true);
                 saveData(true);
                 updateDisplay();
-                
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Month Created',
@@ -539,7 +546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Check and create current month if needed (only if data exists)
-        const monthCreated = ViewManager.checkAndCreateCurrentMonth();
+        const monthCreated = await ViewManager.checkAndCreateCurrentMonth();
         if (monthCreated) {
             saveData();
         }

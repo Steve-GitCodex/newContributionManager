@@ -1,9 +1,18 @@
-// Writes the app's year/month blob back to the org's flat Firestore collections.
-// Edits commit before the read that finds records to prune, so a page closed mid-save
-// keeps the edit; the next save repeats the pruning.
-
+// Writes only documents that differ from the baseline; a scope never loaded into
+// the baseline is therefore never written or deleted.
 const DataWriteAdapter = (function () {
     const BATCH_LIMIT = 450;
+    const baselines = {};
+    let baselineEpoch = 0;
+
+    function setBaseline(collectionName, baseline) {
+        baselines[collectionName] = baseline || {};
+        baselineEpoch++;
+    }
+
+    function mergeBaseline(collectionName, addition) {
+        baselines[collectionName] = Object.assign({}, baselines[collectionName] || {}, addition || {});
+    }
 
     async function commit(operations) {
         for (let start = 0; start < operations.length; start += BATCH_LIMIT) {
@@ -16,77 +25,93 @@ const DataWriteAdapter = (function () {
         }
     }
 
-    function writes(collectionName, records) {
-        return records.map(record => ({
-            type: 'set',
-            ref: OrgDb.doc(collectionName, record.id),
-            data: record
-        }));
+    function stripId(record) {
+        const data = {};
+        for (const key of Object.keys(record || {})) {
+            if (key !== 'id') data[key] = record[key];
+        }
+        return data;
     }
 
-    async function deletions(collectionName, records) {
-        const kept = new Set(records.map(record => record.id));
-        const existing = await OrgDb.getAll(collectionName);
+    function operationsFor(collectionName, records, dataOf) {
+        const shape = dataOf || (record => record);
+        const { writes, deletes } = ChangeSet.diff(baselines[collectionName], records);
 
-        return Object.keys(existing)
-            .filter(id => !kept.has(id))
-            .map(id => ({ type: 'delete', ref: OrgDb.doc(collectionName, id) }));
+        return {
+            operations: [
+                ...writes.map(record => ({ type: 'set', ref: OrgDb.doc(collectionName, record.id), data: shape(record) })),
+                ...deletes.map(id => ({ type: 'delete', ref: OrgDb.doc(collectionName, id) }))
+            ],
+            deletedIds: deletes
+        };
     }
 
-    function monthOperations(contributionsData) {
-        const operations = [];
+    function adoptInto(collectionName, records, deletedIds) {
+        const baseline = Object.assign({}, baselines[collectionName]);
+        for (const id of deletedIds) delete baseline[id];
+        baselines[collectionName] = Object.assign(baseline, ChangeSet.capture(records));
+    }
+
+    function monthRecords(contributionsData) {
+        const records = [];
 
         for (const year of Object.keys(contributionsData)) {
             for (const monthName of Object.keys(contributionsData[year] || {})) {
                 if (ContributionMapper.MONTHS.indexOf(monthName) === -1) continue;
-                operations.push({
-                    type: 'set',
-                    ref: OrgDb.doc('months', `${year}-${monthName}`),
-                    data: { year: Number(year), monthName }
-                });
+                records.push({ id: `${year}-${monthName}`, year: Number(year), monthName });
             }
         }
 
-        return operations;
+        return records;
     }
 
     async function saveAll(contributionsData, blacklistData, budgetData, campaignsData, userRole) {
         const operations = [];
-        const prunable = [];
+        const adopt = [];
+        const epochAtEntry = baselineEpoch;
+
+        const stage = (collectionName, records, dataOf) => {
+            const staged = operationsFor(collectionName, records, dataOf);
+            operations.push(...staged.operations);
+            adopt.push([collectionName, records, staged.deletedIds]);
+        };
 
         if (contributionsData && Object.keys(contributionsData).length > 0) {
-            const records = ContributionMapper.flattenContributions(contributionsData);
-            operations.push(...writes('contributions', records));
-            operations.push(...monthOperations(contributionsData));
-            prunable.push(['contributions', records]);
+            stage('contributions', ContributionMapper.flattenContributions(contributionsData));
+            stage('months', monthRecords(contributionsData), stripId);
         }
 
         if (blacklistData && userRole === 'admin') {
-            const records = ContributionMapper.flattenBlacklist(blacklistData);
-            operations.push(...writes('blacklist', records));
-            prunable.push(['blacklist', records]);
+            stage('blacklist', ContributionMapper.flattenBlacklist(blacklistData));
         }
 
         if (budgetData && userRole === 'admin') {
-            operations.push({ type: 'set', ref: OrgDb.doc('budgets', OrgDb.BUDGET_ID), data: budgetData });
+            stage('budgets', [Object.assign({ id: OrgDb.BUDGET_ID }, budgetData)], stripId);
         }
 
         if (campaignsData) {
             const { campaigns, campaignContributions } = ContributionMapper.flattenCampaigns(campaignsData);
-            operations.push(...writes('campaigns', campaigns));
-            operations.push(...writes('campaignContributions', campaignContributions));
-            prunable.push(['campaigns', campaigns], ['campaignContributions', campaignContributions]);
+
+            stage('campaigns', campaigns);
+            stage('campaignContributions', campaignContributions);
         }
 
         operations.push({ type: 'set', ref: OrgDb.doc('meta', 'state'), data: { lastSync: Date.now() } });
 
         await commit(operations);
 
-        const stale = await Promise.all(prunable.map(([name, records]) => deletions(name, records)));
-        await commit(stale.flat());
+        if (baselineEpoch !== epochAtEntry) return true;
+
+        for (const [collectionName, records, deletedIds] of adopt) {
+            adoptInto(collectionName, records, deletedIds);
+        }
 
         return true;
     }
 
-    return { saveAll };
+    return { setBaseline, mergeBaseline, saveAll };
 })();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DataWriteAdapter;
+}

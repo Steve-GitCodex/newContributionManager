@@ -1,11 +1,5 @@
 import { vi } from 'vitest';
 
-/**
- * Vitest Setup File
- * Configures Firebase mocks and global test utilities
- */
-
-// Mock Firebase Auth
 global.firebase = {
   auth: vi.fn(() => ({
     createUserWithEmailAndPassword: vi.fn(),
@@ -51,6 +45,9 @@ global.firebase = {
     },
     ServerValue: {
       TIMESTAMP: { _type: 'timestamp' }
+    },
+    FieldPath: {
+      documentId: vi.fn(() => ({ _type: 'documentId' }))
     }
   }
 };
