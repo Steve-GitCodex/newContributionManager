@@ -2,21 +2,25 @@
 // Minimal orchestration layer that wires modules together
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Verify org context is available (should already be initialized by inline script before firebase-manager.js)
     if (!window.orgSlug) {
-        // Fallback: try to read from sessionStorage if inline script didn't run for some reason
-        const orgContextStr = sessionStorage.getItem('orgContext');
-        if (orgContextStr) {
-            const orgContext = JSON.parse(orgContextStr);
-            window.orgSlug = orgContext.slug;
-            window.orgName = orgContext.name;
-            OrgDb.setSlug(orgContext.slug);
-            // Organization context loaded from fallback
-        } else {
-            // No org context available - user accessed org-app directly without proper setup
-            window.location.href = '/pages/error-pages/no-organization.html';
+        window.location.replace('/pages/error-pages/no-organization.html');
+        return;
+    }
+
+    OrgDb.setSlug(window.orgSlug);
+
+    if (!window.orgName) {
+        const org = await FirebaseManager.getFirestore()
+            .collection('organizations').doc(window.orgSlug).get()
+            .catch(() => null);
+
+        if (!org || !org.exists) {
+            window.location.replace('/pages/error-pages/no-organization.html');
             return;
         }
+
+        window.orgName = org.data().name;
+        sessionStorage.setItem('orgContext', JSON.stringify({ slug: window.orgSlug, name: window.orgName }));
     }
 
     // Function to hide the initial loading spinner

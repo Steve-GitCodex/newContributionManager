@@ -11,8 +11,15 @@ const ErrorHandler = (() => {
     'auth/weak-password': 'Password must be at least 6 characters long.',
     'auth/invalid-email': 'Please enter a valid email address.',
     'auth/user-disabled': 'This account has been disabled.',
-    'auth/user-not-found': 'No account found with this email. Please create a new account.',
-    'auth/wrong-password': 'Incorrect password. Please try again.',
+    // Deliberately identical to invalid-credential: a login must never reveal
+    // whether an email is registered.
+    'auth/user-not-found': 'Incorrect email or password. Please try again.',
+    'auth/wrong-password': 'Incorrect email or password. Please try again.',
+    // SDK 12.x emits invalid-credential, 9.x emits invalid-login-credentials.
+    'auth/invalid-credential': 'Incorrect email or password. Please try again.',
+    'auth/invalid-login-credentials': 'Incorrect email or password. Please try again.',
+    'auth/missing-password': 'Please enter your password.',
+    'auth/network-request-failed': 'Could not reach the server. Check your connection and try again.',
     'auth/too-many-requests': 'Too many failed login attempts. Please try again later.',
 
     // Firebase errors

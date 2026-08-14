@@ -97,7 +97,7 @@ function setAuthStateChangedCallback(callback) {
 }
 
 /**
- * Display login and signup forms
+ * Display the login form
  */
 function showLoginUI() {
     const homeLink = document.querySelector('.home-link');
@@ -121,15 +121,6 @@ function showLoginUI() {
                     <p class="auth-subtitle">Manage your group contributions with ease</p>
                 </div>
 
-                <div class="auth-tabs">
-                    <button type="button" class="auth-tab active" id="login-tab-btn" data-tab="login">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </button>
-                    <button type="button" class="auth-tab" id="signup-tab-btn" data-tab="signup">
-                        <i class="fas fa-user-plus"></i> Create Account
-                    </button>
-                </div>
-
                 <form id="login-form" class="auth-form active-form">
                     <div class="form-group">
                         <label for="login-email">Email Address</label>
@@ -149,33 +140,8 @@ function showLoginUI() {
                         <i class="fas fa-sign-in-alt"></i> Login
                     </button>
                 </form>
-                
-                <form id="signup-form" class="auth-form">
-                    <div class="form-group">
-                        <label for="signup-email">Email Address</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-envelope"></i>
-                            <input type="email" id="signup-email" placeholder="your@email.com" required>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="signup-password">Password</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-lock"></i>
-                            <input type="password" id="signup-password" placeholder="Create a password (min. 6 characters)" required autocomplete="new-password">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="signup-confirm">Confirm Password</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-lock"></i>
-                            <input type="password" id="signup-confirm" placeholder="Confirm your password" required autocomplete="new-password">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-full">
-                        <i class="fas fa-user-plus"></i> Create Account
-                    </button>
-                </form>
+
+                <p class="auth-note">Accounts are created by your organization's administrator.</p>
             </div>
         </div>
     `;
@@ -183,52 +149,10 @@ function showLoginUI() {
     attachFormHandlers();
 }
 
-/**
- * Attach event listeners to login/signup forms
- */
 function attachFormHandlers() {
-    const loginTab = document.getElementById('login-tab-btn');
-    const signupTab = document.getElementById('signup-tab-btn');
     const loginForm = document.getElementById('login-form');
-    const signupForm = document.getElementById('signup-form');
-
-    // Tab switching
-    if (loginTab) {
-        loginTab.addEventListener('click', () => switchAuthTab('login'));
-    }
-    if (signupTab) {
-        signupTab.addEventListener('click', () => switchAuthTab('signup'));
-    }
-
-    // Form submission
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
-    }
-    if (signupForm) {
-        signupForm.addEventListener('submit', handleSignup);
-    }
-}
-
-/**
- * Switch between login and signup tabs
- * @param {string} tab - Tab name: 'login' or 'signup'
- */
-function switchAuthTab(tab) {
-    const loginForm = document.getElementById('login-form');
-    const signupForm = document.getElementById('signup-form');
-    const loginTab = document.getElementById('login-tab-btn');
-    const signupTab = document.getElementById('signup-tab-btn');
-
-    if (tab === 'login') {
-        loginForm?.classList.add('active-form');
-        signupForm?.classList.remove('active-form');
-        loginTab?.classList.add('active');
-        signupTab?.classList.remove('active');
-    } else {
-        signupForm?.classList.add('active-form');
-        loginForm?.classList.remove('active-form');
-        signupTab?.classList.add('active');
-        loginTab?.classList.remove('active');
     }
 }
 
@@ -319,71 +243,30 @@ async function handleLogin(e) {
         return;
     }
 
-    await ErrorHandler.handle(
-        async () => {
-            Swal.fire({
-                title: 'Logging In...',
-                didOpen: () => Swal.showLoading(),
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-            });
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
 
-            await userauth.signInWithEmailAndPassword(emailValidation.value, passwordInput.value);
-            Swal.close();
-        },
-        'Login',
-        { showUI: false }
-    );
-}
+    Swal.fire({
+        title: 'Logging In...',
+        didOpen: () => Swal.showLoading(),
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+    });
 
-/**
- * Handle signup form submission
- * @param {Event} e - Form submit event
- */
-async function handleSignup(e) {
-    e.preventDefault();
-    
-    // Validate inputs
-    const emailInput = document.getElementById('signup-email');
-    const passwordInput = document.getElementById('signup-password');
-    const confirmInput = document.getElementById('signup-confirm');
-    
-    if (!emailInput || !passwordInput || !confirmInput) {
-        await ErrorHandler.showErrorToast(new Error('Form elements not found'), 'Form Error');
-        return;
+    let failure = null;
+    try {
+        await userauth.signInWithEmailAndPassword(emailValidation.value, passwordInput.value);
+    } catch (error) {
+        failure = error;
     }
 
-    const emailValidation = InputValidator.validateEmail(emailInput.value);
-    const passwordValidation = InputValidator.validatePassword(passwordInput.value);
-    const matchValidation = InputValidator.validatePasswordMatch(passwordInput.value, confirmInput.value);
+    Swal.close();
+    if (submitButton) submitButton.disabled = false;
 
-    if (!emailValidation.valid || !passwordValidation.valid || !matchValidation.valid) {
-        const errorMessage = emailValidation.error || passwordValidation.error || matchValidation.error;
-        await ErrorHandler.showErrorToast(new Error(errorMessage), 'Validation Error');
-        return;
-    }
-
-    await ErrorHandler.handle(
-        async () => {
-            Swal.fire({
-                title: 'Creating Account...',
-                didOpen: () => Swal.showLoading(),
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                toast: true,
-                position: 'top-end'
-            });
-
-            await userauth.createUserWithEmailAndPassword(emailValidation.value, passwordInput.value);
-            Swal.close();
-        },
-        'Account Creation',
-        { showUI: false }
-    );
+    if (failure) await ErrorHandler.showErrorToast(failure, 'Login Failed');
 }
 
 /**

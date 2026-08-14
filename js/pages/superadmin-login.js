@@ -111,16 +111,16 @@ class SuperAdminLoginPage {
     } catch (error) {
       console.error('Login error:', error);
       
-      let errorMessage = 'Login failed. Please try again.';
-      if (error.code === 'auth/user-not-found') {
-        errorMessage = 'User not found. Check your email address.';
-      } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password. Please try again.';
-      } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address.';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
+      // Never distinguish "no such account" from "wrong password", and never surface
+      // a raw Firebase message on the most privileged login in the system.
+      const messages = {
+        'auth/invalid-email': 'Invalid email address.',
+        'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
+        'auth/network-request-failed': 'Could not reach the server. Check your connection.'
+      };
+      const errorMessage = error.message === 'User is not a super admin'
+        ? 'This account does not have administrator access.'
+        : messages[error.code] || 'Incorrect email or password. Please try again.';
 
       Swal.fire({
         icon: 'error',

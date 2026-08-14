@@ -134,8 +134,6 @@ class AdminSetupPage {
         errorMessage = 'Password is too weak. Use at least 8 characters with uppercase, lowercase, and numbers.';
       } else if (error.code === 'permission-denied') {
         errorMessage = 'Setup has already been completed for this deployment.';
-      } else if (error.message) {
-        errorMessage = error.message;
       }
 
       Swal.fire({

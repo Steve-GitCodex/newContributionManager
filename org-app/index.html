@@ -467,18 +467,22 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="../config-central.js"></script>
 
-    <!-- Initialize organization context from sessionStorage (must run before firebase-manager.js) -->
+    <!-- Resolve the organization before firebase-manager.js and org-db.js run -->
     <script>
-        const orgContextStr = sessionStorage.getItem('orgContext');
-        if (orgContextStr) {
-            const orgContext = JSON.parse(orgContextStr);
-            window.orgSlug = orgContext.slug;
-            window.orgName = orgContext.name;
-            console.log('Organization context initialized:', orgContext.slug);
-        } else {
-            console.warn('No organization context found in sessionStorage - redirecting to organization selection');
-            window.location.href = '/pages/error-pages/no-organization.html';
-        }
+        (function () {
+            const urlSlug = new URLSearchParams(window.location.search).get('slug');
+            const cached = JSON.parse(sessionStorage.getItem('orgContext') || 'null');
+
+            if (urlSlug) {
+                window.orgSlug = urlSlug;
+                window.orgName = cached && cached.slug === urlSlug ? cached.name : null;
+            } else if (cached && cached.slug) {
+                window.orgSlug = cached.slug;
+                window.orgName = cached.name;
+            } else {
+                window.location.replace('/pages/error-pages/no-organization.html');
+            }
+        })();
     </script>
 
     <!-- Application Modules (order matters!) -->

@@ -39,74 +39,11 @@
     <p>Loading organization...</p>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/12.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/12.8.0/firebase-auth-compat.js"></script>
-
-  <!-- Central Config -->
-  <script src="/config-central.js"></script>
-
   <script>
-    // Timeout for loading (5 seconds)
-    const loadTimeout = setTimeout(() => {
-      document.body.innerHTML = `
-        <div class="loading-container">
-          <p style="color: red; margin-top: 20px;">
-            Failed to load organization: Request timed out
-          </p>
-          <p><a href="/pages/superadmin/dashboard.html" style="color: #3498db; text-decoration: none;">← Back to Dashboard</a></p>
-        </div>
-      `;
-    }, 5000);
-
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        // Initialize central Firebase (no auth required)
-        const { auth, db } = initializeCentralFirebase();
-
-        // Extract slug from URL
-        const params = new URLSearchParams(window.location.search);
-        const slug = params.get('slug');
-
-        if (!slug) {
-          throw new Error('No organization slug provided');
-        }
-
-        // Load organization metadata from central Firestore
-        // Firestore rules allow unauthenticated reads for org bootstrap
-        const orgDoc = await db.collection('organizations').doc(slug).get();
-        if (!orgDoc.exists) {
-          throw new Error(`Organization not found: ${slug}`);
-        }
-
-        const org = {
-          slug: orgDoc.id,
-          ...orgDoc.data()
-        };
-
-        // Store complete org context in sessionStorage for org-app
-        sessionStorage.setItem('orgContext', JSON.stringify({
-          slug: org.slug,
-          name: org.name
-        }));
-
-        // Clear timeout and redirect to org-app/index.html
-        clearTimeout(loadTimeout);
-        window.location.href = '/org-app/index.html';
-      } catch (error) {
-        clearTimeout(loadTimeout);
-        console.error('Initialization error:', error);
-        document.body.innerHTML = `
-          <div class="loading-container">
-            <p style="color: red; margin-top: 20px;">
-              Failed to load organization: ${error.message}
-            </p>
-            <p><a href="/" style="color: #3498db; text-decoration: none;">← Home</a></p>
-          </div>
-        `;
-      }
-    });
+    const slug = new URLSearchParams(window.location.search).get('slug');
+    window.location.replace(slug
+      ? `/org-app/index.html?slug=${encodeURIComponent(slug)}`
+      : '/pages/error-pages/no-organization.html');
   </script>
 </body>
 </html>

@@ -219,6 +219,14 @@
     line-height: 1.5;
 }
 
+.auth-note {
+    margin: 20px 0 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
 /* Auth Tabs */
 .auth-tabs {
     display: flex;
