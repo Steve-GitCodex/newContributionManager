@@ -150,6 +150,7 @@ function showLoginUI() {
                     <button type="submit" class="btn btn-primary btn-full">
                         <i class="fas fa-sign-in-alt"></i> Login
                     </button>
+                    <a href="#" id="forgot-password-link" class="auth-link">Forgot your password?</a>
                 </form>
 
                 <p class="auth-note">Accounts are created by your organization's administrator.</p>
@@ -165,6 +166,7 @@ function attachFormHandlers() {
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
+    PasswordReset.initLoginLink();
 }
 
 /**

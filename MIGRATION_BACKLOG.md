@@ -222,8 +222,48 @@ This also fixed a latent bug: `pages/organization.html` never loaded
 `config-generated.js`, so it had been falling back to the placeholder API key.
 
 ### Still open
-- [ ] **Password change.** Members are given a starter password by an admin and there is
-      no in-app way to change it. Firebase's password-reset email is the cheap fix.
+- [x] **Password change.** A Change Password card in Settings, open to every role, since
+      everyone signs in with a starter password an admin chose. `password-change.js` takes
+      the current password rather than leaning on session age: Firebase requires a recent
+      login for `updatePassword`, so the current password is re-submitted as a credential
+      via `reauthenticateWithCredential`. Rejected before Firebase is touched: blank
+      current, under 8 characters (matching what `MemberInvite` issues, asserted by a test
+      that reads the invite source), mismatched confirmation, and reusing the current
+      password. A failed reauth reports "your current password is incorrect" rather than
+      the enumeration-safe login text, which is right here — the account is already known.
+
+      10 tests, plus a live run: changed the password, confirmed the old one no longer
+      signs in and the new one does.
+
+- [x] **Password reset by email**, for the case the change form cannot serve — someone
+      locked out. `password-reset.js` offers it in two places: a "Forgot your password?"
+      link under the login form, prefilled with whatever address was typed, and a button
+      in the Settings card that uses the signed-in address without asking.
+
+      A reply never reveals whether an address is registered: `auth/user-not-found` is
+      swallowed and reports the same "if that address has an account…" as a real send.
+      (The project also has Email Enumeration Protection on, so Firebase returned 200 for
+      an unknown address anyway — the app no longer depends on that setting being left
+      alone.) Rate limiting, network failure and malformed addresses each get their own
+      message; nothing else reaches the user unsanitized. 8 tests, plus a live run of both
+      entry points against the real Identity Toolkit — known and unknown addresses both
+      returned 200 with identical wording on screen.
+
+      Confirmed from the live Identity Toolkit config: `enableImprovedEmailPrivacy` is on,
+      `callbackUri` is `universal-contribution-manager.firebaseapp.com/__/auth/action`,
+      `dnsInfo.customDomainState` is `NOT_STARTED`, and `authorizedDomains` holds only
+      localhost plus the two Firebase domains — the Vercel domain is not on it.
+
+- [ ] **Reset emails land in spam.** The sender is
+      `noreply@universal-contribution-manager.firebaseapp.com`, a domain shared by every
+      Firebase project and unrelated to anything the recipient trusts, sending with no
+      history. Wording is the small part; the fix that moves the needle is custom SMTP
+      from a domain with SPF, DKIM and DMARC (Console → Authentication → Templates → SMTP
+      settings), which needs an provider account and DNS records.
+      `scripts/auth-email-template.js` handles the part that can be automated: it replaces
+      `%APP_NAME%` — which renders as the unset GCP project display name,
+      `project-10877815438` — with the product name, and rewrites the copy. Dry run by
+      default, `--apply` to write.
 - [x] **Removing a member** — `org-app/js/member-admin.js` owns role changes and removals;
       the admin dashboard's user table delegates to it. Two guards: you cannot remove
       yourself, and the last admin can be neither removed nor demoted. Removal deletes
@@ -303,9 +343,102 @@ This also fixed a latent bug: `pages/organization.html` never loaded
 - [x] `org-app/firebase.rules` deleted — the duplicate `users` key is moot.
 - [x] `firestore.rules` is back in sync with what is deployed, and was deployed *from* the
       repo. Keep it that way: deploy rules from the repo, never edit them in the console.
-- [ ] **Oversized files.** `event-handlers.js` (1414 lines) and `templates.js` (823) are
-      well past the ~400-line limit; `ui-renderer.js` (699) too. `auth.js` is down to 420
-      from 538. Splitting these is the largest remaining tidy-up.
+- [ ] **Oversized files.** `event-handlers.js` **1414 → 312**, split along the seams the
+      file already had: `budget-handlers.js` (231) owns the Budget tab, and
+      `campaign-handlers.js` (864) owns Special Giving. Neither section called into the
+      other — the only `this.` references were self-recursive — so the move was textual.
+      The three SweetAlert helpers the sections shared are now `dialogs.js` (40).
+      Each module takes the same `init(state, saveCallback)`; the 12 call sites in
+      `app.js` and `view-manager.js` name the module they mean instead of reaching through
+      `EventHandlers`.
+
+      `role-gating.test.js` scans a file list, so the moved controls would have silently
+      dropped out of its coverage — the two new files are on the list, and its 26
+      assertions still pass with the 3 `data-requires` controls that travelled.
+
+      Verified in a browser, since none of the moved code has unit tests: added and
+      deleted an expense (totals followed), ran the 4-step pledge wizard to completion and
+      confirmed `camp_seed--mary` landed in Firestore with the right deterministic id, and
+      re-checked the contribution toggle and both confirm dialogs in what remains of
+      `event-handlers.js`.
+
+      `admin-dashboard.js` **966 → 417**, split by what each part talks to:
+      `dashboard-summary.js` (83) is arithmetic with no DOM, `dashboard-charts.js` (160)
+      owns the Chart.js instances, `dashboard-export.js` (300) owns the CSVs and the
+      printable report. The export module had been reading `allContributionsData` off the
+      dashboard's scope; it now takes it through `useData`, which the dashboard calls when
+      it loads. A local `sanitizeHTML` duplicating `Utils.sanitizeHTML` went with the
+      split — `utils.js` was already loaded on that page.
+
+      Pulling the arithmetic out earned it **14 tests**, its first coverage: year
+      filtering, contributors counted once across months, a non-numeric amount treated as
+      zero rather than poisoning the total with NaN, and paid + unpaid reconciling to the
+      total. Verified in a browser against seeded figures — 700 paid of 1,200, expenses
+      200 for the year against 600 all-time — plus both CSVs (real blobs, 465 and 217
+      bytes) and a 10KB print report.
+
+      **"Users with Expenses" was a leftover from per-user budgets** and could only ever
+      read 1. It counts expenses now, labelled "Expenses Recorded", and the panel heading
+      lost "Across Users".
+
+      Still over the limit: `campaign-handlers.js` (864), `templates.js` (823),
+      `ui-renderer.js` (711), `app.js` (615), `admin-dashboard.js` (417).
+
+### Contrast — text that hardcoded one theme's colors
+Reported from a screenshot: the budget summary values were barely legible. `.stat-item
+strong` was `color: #333` — which is exactly the *light* theme's `--text-primary`, so on
+the dark surface it measured **1.3:1**. It is `var(--text-primary)` now: **8.6:1** dark,
+**12:1** light. Its label moved from `--text-tertiary` to `--text-secondary` to clear AA
+(3.99 → 5.24).
+
+Sweeping for the same mistake turned up more, all fixed by pointing at the token instead
+of a literal: section headings, expense amounts, both empty states, the campaign
+contributor date and note, the period-selector labels, and two *backgrounds* that were
+pinned light — the expense row hover and the reports column selector — which would have
+put dark-theme text on a near-white panel.
+
+Three token-level faults behind them:
+
+- Dark mode had `--text-light: #777`, **darker** than its own `--text-tertiary: #999` —
+  the light-mode ramp copied into a theme where it inverts. Now `#949494`.
+- `--primary-color` was used both as a button fill and as text. As text it never passed:
+  3.5:1 on white, 3.76:1 on dark. A separate `--primary-text` now carries the readable
+  value at each end (`#4c5fd7` / `#93a4ff`), across 21 usages, leaving fills untouched.
+- Light mode's `--text-tertiary` and `--text-light` sat at 4.11:1 and 2.85:1. Now
+  `#6b6b6b` and `#717171`.
+
+And one leak: `modal.css` styled a bare `.filter-group label` white for the purple
+`.table-filters` bar. Loading last, it won over `budget.css` and painted the budget's own
+filter labels white on a near-white panel — **1.05:1, invisible in light mode**, worse
+than the reported bug. The rule is scoped to `.table-filters` now; the labels measure
+12:1 light and 8.6:1 dark.
+
+Measured with a contrast sweep over every text node in both themes. It skips elements
+painted by gradients — `getComputedStyle` cannot resolve those to a colour, and treating
+them as white produced false positives on the header, table headings and role badge.
+
+### White text on brand fills (done)
+`.btn`, `.btn-success` and `.contribute-btn` painted white text on accents chosen to look
+right rather than to be read: Add Expense measured **2.13 light / 1.87 dark**, the button
+base **3.87** in dark.
+
+The accents could not simply be darkened — `--accent-green` is also the colour of *text*
+in four places, where darkening helps on light and hurts on dark. So fills got their own
+tokens: `--accent-green-fill: #1c8459`, `--accent-blue-fill: #4a69bd`, with hover pairs.
+They live in `:root` alone, since a fill carrying white text needs the same value in both
+themes; `--accent-green` and `--accent-blue` are untouched for text, borders and bars.
+
+Now **4.67** for the green buttons and **5.19** for the blue, identical in both themes.
+
+### Latent: campaign documents are trusted to carry their own fields
+Two seeded campaigns crashed or misbehaved while testing the split, both because the
+document lacked a field the UI assumes: `CAMPAIGN_CARD` calls `.toLocaleString()` on
+`amountRaised` without a guard, and `rebuildCampaigns` never falls back to the document
+key for `id`, so a campaign without one renders `data-campaign-id="undefined"` and every
+action on it answers "Campaign not found". Real campaigns always carry both — `flattenCampaigns`
+writes them and the migration did too — so nothing in production is affected. But
+`rebuildContributions` guards this exact case (`record.id || key`) and its campaign
+counterpart does not.
 - [ ] `tests/unit/app-initializer.test.js`, `service-container.test.js` and
       `setup-status.test.js` test copies rather than the real modules. They have no real
       counterpart, so deleting them would drop those modules to zero coverage; they need

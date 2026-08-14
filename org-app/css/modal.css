@@ -40,7 +40,7 @@
 
 .modal-header h3 {
     margin: 0;
-    color: var(--primary-color);
+    color: var(--primary-text);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -108,13 +108,13 @@
     flex-wrap: wrap;
 }
 
-.filter-group {
+.table-filters .filter-group {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.filter-group label {
+.table-filters .filter-group label {
     font-weight: 500;
     color: #ffffff;
     font-size: 14px;
@@ -126,11 +126,11 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.filter-group label i {
+.table-filters .filter-group label i {
     color: var(--text-primary);
 }
 
-.filter-group select {
+.table-filters .filter-group select {
     min-width: 120px;
     padding: 8px 12px;
     border: 2px solid var(--border-color);
@@ -141,7 +141,7 @@
     color: var(--text-primary);
 }
 
-.filter-group select:focus {
+.table-filters .filter-group select:focus {
     outline: none;
     border-color: var(--primary-color);
     background: var(--bg-secondary);

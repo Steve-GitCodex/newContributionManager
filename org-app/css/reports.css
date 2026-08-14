@@ -160,14 +160,14 @@
     align-items: center;
     justify-content: center;
     min-height: 200px;
-    color: #999;
+    color: var(--text-tertiary);
     font-size: 16px;
     font-style: italic;
 }
 
 /* Column Selector */
 .column-selector {
-    background-color: #f8f9fa;
+    background-color: var(--bg-tertiary);
     padding: 16px;
     margin: 0 24px 16px 24px;
     border-radius: 8px;
@@ -234,7 +234,7 @@
 .report-summary h4 {
     margin-top: 0;
     margin-bottom: 16px;
-    color: var(--primary-color);
+    color: var(--primary-text);
     font-size: 18px;
     font-weight: 700;
     display: flex;
@@ -316,7 +316,7 @@
 .report-summary .summary-value {
     font-size: 20px;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-text);
     word-break: break-word;
 }
 
@@ -364,7 +364,7 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 20px;
-    color: #333;
+    color: var(--text-primary);
     font-size: 22px;
 }
 
@@ -380,7 +380,7 @@
 
 .blacklist-section .form-group label {
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 8px;
 }
 
@@ -425,7 +425,7 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 16px;
-    color: var(--primary-color);
+    color: var(--primary-text);
     font-size: 18px;
 }
 

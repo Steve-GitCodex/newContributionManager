@@ -130,7 +130,7 @@ const ViewManager = (function() {
                         const totalIncome = BudgetManager.calculateBudgetFromIncome({});
                         BudgetManager.renderBudgetUI(budgetDom, state.budgetData, totalIncome);
                         setTimeout(() => {
-                            EventHandlers.setupBudgetEventHandlers();
+                            BudgetHandlers.setup();
                         }, 100);
                     } else {
                         UIRenderer.renderBudgetEmptyState();
@@ -142,12 +142,12 @@ const ViewManager = (function() {
                     if (campaigns && campaigns.length > 0) {
                         UIRenderer.renderSpecialGivingView(campaigns);
                         setTimeout(() => {
-                            EventHandlers.setupSpecialGivingEventHandlers();
+                            CampaignHandlers.setup();
                         }, 100);
                     } else {
                         UIRenderer.renderSpecialGivingEmptyState();
                         setTimeout(() => {
-                            EventHandlers.setupSpecialGivingEventHandlers();
+                            CampaignHandlers.setup();
                         }, 100);
                     }
                 }
@@ -190,7 +190,7 @@ const ViewManager = (function() {
                 const totalIncome = BudgetManager.calculateBudgetFromIncome(state.contributionsData);
                 BudgetManager.renderBudgetUI(budgetDom, state.budgetData, totalIncome);
                 setTimeout(() => {
-                    EventHandlers.setupBudgetEventHandlers();
+                    BudgetHandlers.setup();
                 }, 100);
             } else if (state.currentView === 'reports') {
                 // When switching to reports tab with data, hide empty state and handle visibility
@@ -202,12 +202,12 @@ const ViewManager = (function() {
                 if (campaigns && campaigns.length > 0) {
                     UIRenderer.renderSpecialGivingView(campaigns);
                     setTimeout(() => {
-                        EventHandlers.setupSpecialGivingEventHandlers();
+                        CampaignHandlers.setup();
                     }, 100);
                 } else {
                     UIRenderer.renderSpecialGivingEmptyState();
                     setTimeout(() => {
-                        EventHandlers.setupSpecialGivingEventHandlers();
+                        CampaignHandlers.setup();
                     }, 100);
                 }
             }

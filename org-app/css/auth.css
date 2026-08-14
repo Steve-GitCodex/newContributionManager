@@ -28,7 +28,7 @@
 
 .user-details i {
     font-size: 24px;
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .user-email {
@@ -74,11 +74,11 @@
 }
 
 .btn-secondary {
-    background-color: var(--accent-blue);
+    background-color: var(--accent-blue-fill);
 }
 
 .btn-secondary:hover {
-    background-color: #5a7fd4;
+    background-color: var(--accent-blue-fill-hover);
 }
 
 /* Admin Dashboard */
@@ -227,6 +227,19 @@
     line-height: 1.5;
 }
 
+.auth-link {
+    display: block;
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-decoration: none;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+
 /* Auth Tabs */
 .auth-tabs {
     display: flex;
@@ -354,7 +367,7 @@
 }
 
 .input-wrapper input:focus ~ i {
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 /* Buttons */
@@ -406,7 +419,7 @@
 
 .form-footer a,
 .form-footer button {
-    color: var(--primary-color);
+    color: var(--primary-text);
     text-decoration: none;
     font-weight: 600;
     background: none;

@@ -71,6 +71,8 @@ describe('every mutating control is gated', () => {
         'org-app/js/templates.js',
         'org-app/js/expected-members.js',
         'org-app/js/event-handlers.js',
+        'org-app/js/budget-handlers.js',
+        'org-app/js/campaign-handlers.js',
         'org-app/js/contribution-renderer.js',
         'org-app/js/ui-renderer.js'
     ];

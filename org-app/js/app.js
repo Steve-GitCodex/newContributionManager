@@ -276,6 +276,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize modules with state and explicit dependencies
     EventHandlers.init(appState, saveData);
+    BudgetHandlers.init(appState, saveData);
+    CampaignHandlers.init(appState, saveData);
     ViewManager.init(appState, eventHandlers);
     UIRenderer.init(appState, saveData);
 
@@ -284,6 +286,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Modal Manager and Expected Members Manager
         ModalManager.init();
         ExpectedMembersManager.init();
+        PasswordChange.init();
+        PasswordReset.initSettingsButton();
 
         // Tab navigation buttons
         const tabButtons = document.querySelectorAll('.tab-btn');
@@ -297,14 +301,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Setup budget event handlers if viewing budget tab
                 if (view === 'budget') {
                     setTimeout(() => {
-                        EventHandlers.setupBudgetEventHandlers();
+                        BudgetHandlers.setup();
                     }, 100);
                 }
 
                 // Setup special giving event handlers if viewing special-giving tab
                 if (view === 'special-giving') {
                     setTimeout(() => {
-                        EventHandlers.setupSpecialGivingEventHandlers();
+                        CampaignHandlers.setup();
                     }, 100);
                 }
             });
@@ -505,6 +509,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         UIRenderer.init(appState, saveData);
         ViewManager.init(appState, eventHandlers);
         EventHandlers.init(appState, saveData);
+        BudgetHandlers.init(appState, saveData);
+        CampaignHandlers.init(appState, saveData);
 
         // Initialize budget manager for admin users and special giving manager for all users
         const userRole = AuthModule.getUserRole();

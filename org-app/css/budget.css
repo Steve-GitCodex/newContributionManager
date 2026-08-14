@@ -62,7 +62,7 @@ header .btn {
 
 .budget-card .card-icon {
     font-size: 28px;
-    color: var(--primary-color);
+    color: var(--primary-text);
     min-width: 40px;
     display: flex;
     align-items: center;
@@ -129,7 +129,7 @@ header .btn {
 .progress-percentage {
     font-size: 18px;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .progress-bar {
@@ -173,7 +173,7 @@ header .btn {
     gap: 10px;
     font-size: 18px;
     margin-bottom: 15px;
-    color: #333;
+    color: var(--text-primary);
 }
 
 /* Budget Form */
@@ -260,7 +260,7 @@ header .btn {
 
 .financial-card .card-icon {
     font-size: 28px;
-    color: var(--primary-color);
+    color: var(--primary-text);
     min-width: 40px;
     display: flex;
     align-items: center;
@@ -303,7 +303,7 @@ header .btn {
 .stat-item label {
     display: block;
     font-size: 12px;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     text-transform: uppercase;
     margin-bottom: 8px;
     font-weight: 600;
@@ -312,7 +312,7 @@ header .btn {
 .stat-item strong {
     display: block;
     font-size: 20px;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .stat-item strong.positive {
@@ -575,7 +575,7 @@ header .btn {
 }
 
 .expense-row:hover {
-    background-color: #f9f9f9;
+    background-color: var(--bg-tertiary);
 }
 
 .category-badge {
@@ -590,7 +590,7 @@ header .btn {
 
 .expenses-table .amount {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--text-primary);
 }
 
 /* Responsive filters */
@@ -629,13 +629,13 @@ header .btn {
     justify-content: center;
     padding: 60px 20px;
     text-align: center;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .no-expenses-message i {
     font-size: 48px;
     margin-bottom: 15px;
-    color: #ddd;
+    color: var(--border-color);
 }
 
 /* Expense form: field-level validation */
@@ -658,7 +658,7 @@ header .btn {
 
 .no-expenses-message p {
     font-size: 16px;
-    color: #666;
+    color: var(--text-secondary);
     margin: 0;
 }
 

@@ -378,11 +378,11 @@ table td .btn i {
 
 .total-item.yearly {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .total-item.yearly i {
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .total-item strong {

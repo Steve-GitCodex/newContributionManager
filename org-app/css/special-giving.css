@@ -94,12 +94,12 @@
 
 .icon-btn.view-btn {
     background-color: rgba(102, 126, 234, 0.15);
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .icon-btn.view-btn:hover {
     background-color: rgba(102, 126, 234, 0.25);
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .icon-btn.share-btn {
@@ -162,7 +162,7 @@
 
 .pledged-stat {
     background-color: rgba(102, 126, 234, 0.1);
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .paid-stat {
@@ -177,7 +177,7 @@
 
 .contrib-stat {
     background-color: rgba(102, 126, 234, 0.1);
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .campaign-progress {
@@ -209,7 +209,7 @@
 
 .progress-info .percentage {
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--primary-text);
 }
 
 .progress-bar {
@@ -249,13 +249,13 @@
 }
 
 .contribute-btn {
-    background-color: var(--accent-green);
+    background-color: var(--accent-green-fill);
     color: white;
     flex-basis: 100%;
 }
 
 .contribute-btn:hover {
-    background-color: #48d597;
+    background-color: var(--accent-green-fill-hover);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
 }
@@ -419,13 +419,13 @@
 
 .contributor-date {
     font-size: 11px;
-    color: #999;
+    color: var(--text-tertiary);
     margin-top: 8px;
 }
 
 .contributor-note {
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     margin-top: 8px;
     font-style: italic;
 }
@@ -433,13 +433,13 @@
 .empty-state {
     text-align: center;
     padding: 60px 20px;
-    color: #999;
+    color: var(--text-tertiary);
 }
 
 .empty-state i {
     font-size: 48px;
     margin-bottom: 15px;
-    color: #ddd;
+    color: var(--border-color);
     display: block;
 }
 

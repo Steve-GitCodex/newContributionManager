@@ -9,9 +9,9 @@
     
     --text-primary: #333;
     --text-secondary: #666;
-    --text-tertiary: #777;
-    --text-light: #999;
-    
+    --text-tertiary: #6b6b6b;
+    --text-light: #717171;
+
     --border-color: #ddd;
     --border-light: #e0e0e0;
     --border-lighter: #f0f0f0;
@@ -26,6 +26,13 @@
     --accent-red: #dc3545;
     --accent-orange: #fd7e14;
     --accent-yellow: #ffc107;
+
+    /* Fills sit behind white text in both themes, so they take one value, not two.
+       The plain accents above stay as they are for text, borders and progress bars. */
+    --accent-blue-fill: #4a69bd;
+    --accent-blue-fill-hover: #3d5aa8;
+    --accent-green-fill: #1c8459;
+    --accent-green-fill-hover: #15704a;
     
     --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
@@ -41,11 +48,13 @@ body[data-theme="dark"] {
     --bg-tertiary: #3a3a3a;
     --bg-hover: #404040;
     
+    /* Each step must stay lighter than the surface it sits on, so the light-mode ramp
+       inverts here rather than carrying over. */
     --text-primary: #e0e0e0;
     --text-secondary: #b0b0b0;
     --text-tertiary: #999;
-    --text-light: #777;
-    
+    --text-light: #949494;
+
     --border-color: #444;
     --border-light: #404040;
     --border-lighter: #353535;
@@ -279,7 +288,7 @@ body[data-theme="dark"] .swal2-select {
 }
 
 .spinner-container p {
-    color: var(--primary-color);
+    color: var(--primary-text);
     font-size: 16px;
     font-weight: 500;
     margin-top: 10px;
@@ -298,7 +307,7 @@ body[data-theme="dark"] .swal2-select {
     justify-content: center;
     border-radius: 50%;
     background: var(--bg-secondary);
-    color: var(--primary-color);
+    color: var(--primary-text);
     text-decoration: none;
     border: 2px solid var(--primary-color);
     transition: all 0.3s ease;
@@ -336,6 +345,6 @@ body[data-theme="dark"] .swal2-select {
 }
 
 .theme-toggle i {
-    color: var(--primary-color);
+    color: var(--primary-text);
     margin: 0;
 }

@@ -60,7 +60,7 @@ option:checked {
 /* Button Styles */
 .btn {
     padding: 10px 15px;
-    background-color: var(--accent-blue);
+    background-color: var(--accent-blue-fill);
     color: white;
     border: none;
     border-radius: 4px;
@@ -186,11 +186,11 @@ option:checked {
 }
 /* Button Color Variants */
 .btn.btn-success {
-    background-color: var(--accent-green);
+    background-color: var(--accent-green-fill);
 }
 
 .btn.btn-success:hover {
-    background-color: #48d597;
+    background-color: var(--accent-green-fill-hover);
 }
 
 .btn.btn-primary {
