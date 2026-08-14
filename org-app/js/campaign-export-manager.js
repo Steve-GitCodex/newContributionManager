@@ -69,74 +69,6 @@ const CampaignExportManager = (function () {
     };
 
     /**
-     * Generate campaign PDF content
-     */
-    const generatePDFContent = (campaign, contributions) => {
-        const element = document.createElement('div');
-        element.style.padding = '20px';
-        element.style.fontFamily = 'Arial, sans-serif';
-        element.innerHTML = `
-            <h2>${campaign.purpose}</h2>
-            <p><strong>Status:</strong> ${campaign.status === 'active' ? 'Active' : 'Resolved'}</p>
-            <p><strong>Created:</strong> ${campaign.formattedDateCreated}</p>
-            ${campaign.targetDate ? `<p><strong>Target Date:</strong> ${campaign.formattedTargetDate}</p>` : ''}
-            <h3>Campaign Summary</h3>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <tr style="background-color: #f5f5f5;">
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Target Amount</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${campaign.targetAmount.toLocaleString()}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount Pledged</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${campaign.amountRaised.toLocaleString()}</td>
-                </tr>
-                <tr style="background-color: #f5f5f5;">
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount Paid</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd; color: #27ae60; font-weight: bold;">${campaign.totalPaid.toLocaleString()}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Outstanding</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd; color: #e74c3c; font-weight: bold;">${campaign.outstandingAmount.toLocaleString()}</td>
-                </tr>
-                <tr style="background-color: #f5f5f5;">
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Pledges Progress</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${campaign.pledgedProgress}%</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>Payments Progress</strong></td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${campaign.paidProgress}%</td>
-                </tr>
-            </table>
-            ${campaign.reason ? `<p><strong>Reason:</strong><br/>${campaign.reason.replace(/\n/g, '<br/>')}</p>` : ''}
-            <h3>Contributors (${contributions.length})</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-                <tr style="background-color: #667eea; color: white;">
-                    <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">Name</th>
-                    <th style="text-align: right; padding: 8px; border: 1px solid #ddd;">Pledged</th>
-                    <th style="text-align: right; padding: 8px; border: 1px solid #ddd;">Paid</th>
-                    <th style="text-align: right; padding: 8px; border: 1px solid #ddd;">Outstanding</th>
-                    <th style="text-align: left; padding: 8px; border: 1px solid #ddd;">Date</th>
-                </tr>
-                ${contributions.map((contrib, idx) => {
-                    const pledgedAmt = contrib.pledgedAmount || 0;
-                    const paidAmt = contrib.amountPaid || 0;
-                    const formattedDate = contrib.formattedDate || moment(contrib.date).format('DD/MM/YYYY');
-                    return `
-                        <tr style="background-color: ${idx % 2 === 0 ? '#fff' : '#f9f9f9'};">
-                            <td style="padding: 8px; border: 1px solid #ddd;">${contrib.contributorName}</td>
-                            <td style="text-align: right; padding: 8px; border: 1px solid #ddd;">${pledgedAmt.toLocaleString()}</td>
-                            <td style="text-align: right; padding: 8px; border: 1px solid #ddd; color: #27ae60; font-weight: bold;">${paidAmt.toLocaleString()}</td>
-                            <td style="text-align: right; padding: 8px; border: 1px solid #ddd; color: #e74c3c;">${(pledgedAmt - paidAmt).toLocaleString()}</td>
-                            <td style="padding: 8px; border: 1px solid #ddd;">${formattedDate}</td>
-                        </tr>
-                    `;
-                }).join('')}
-            </table>
-        `;
-        return element;
-    };
-
-    /**
      * Handle generic download with validation and error handling
      */
     const downloadFile = (blob, filename, format) => {
@@ -250,44 +182,27 @@ const CampaignExportManager = (function () {
      * Export campaign as PDF file
      */
     const exportAsPDF = async (campaign, contributions) => {
-        return new Promise((resolve, reject) => {
-            try {
-                if (typeof html2pdf === 'undefined') {
-                    reject(new Error('PDF library not loaded'));
-                    return;
-                }
+        const printWindow = window.open('', '_blank');
 
-                const element = generatePDFContent(campaign, contributions);
+        if (!printWindow) {
+            throw new Error('Could not open the print window. Please allow pop-ups for this site and try again.');
+        }
 
-                if (!element || !element.innerHTML) {
-                    reject(new Error('Failed to generate PDF content'));
-                    return;
-                }
+        printWindow.document.write(CampaignPrintTemplate.build(campaign, contributions));
+        printWindow.document.close();
 
-                const filename = `campaign_${campaign.purpose.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-                const contentSize = element.innerHTML.length;
-
-                html2pdf()
-                    .set({
-                        margin: 10,
-                        filename: filename,
-                        html2canvas: { scale: 2 },
-                        jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
-                    })
-                    .from(element)
-                    .save()
-                    .then(() => {
-                        resolve({ size: contentSize, format: 'PDF' });
-                    })
-                    .catch(error => {
-                        console.error('[PDF] Export error:', error);
-                        reject(new Error('Failed to generate PDF: ' + error.message));
-                    });
-            } catch (error) {
-                console.error('[PDF] Handler error:', error);
-                reject(error);
+        await new Promise(resolve => {
+            if (printWindow.document.readyState === 'complete') {
+                resolve();
+                return;
             }
+            printWindow.addEventListener('load', resolve, { once: true });
         });
+
+        printWindow.focus();
+        printWindow.print();
+
+        return { contributors: contributions.length, format: 'PDF' };
     };
 
     // Public API

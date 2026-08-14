@@ -1233,7 +1233,7 @@ const EventHandlers = (function () {
                         pdfBtn.addEventListener('click', async () => {
                             try {
                                 const result = await CampaignExportManager.exportAsPDF(campaign, contributions);
-                                showSuccessToast('Success', `PDF queued for download (~${result.size} bytes)`);
+                                showSuccessToast('Success', `Print dialog opened for ${result.contributors} contributor${result.contributors === 1 ? '' : 's'} — choose "Save as PDF"`);
                                 setTimeout(() => Swal.close(), 3500);
                             } catch (error) {
                                 showError('Export Error', error.message);

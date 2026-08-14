@@ -104,3 +104,4 @@ Desktop.ini
 REFACTORING_GUIDE.md
 .vercel
 .env*.local
+.kilo/

@@ -179,7 +179,7 @@ const ReportExporter = (function() {
                         .report-subtitle { font-size: 15px; color: #666; margin-bottom: 16px; padding: 12px 16px; background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 4px; }
                         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
                         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                        th { background-color: #4a69bd; color: white; }
+                        th { background-color: #dbe2f4; color: #1e2a52; font-weight: bold; border-bottom: 2px solid #4a69bd; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                         .paid { color: green; }
                         .unpaid { color: red; }
                         .no-record { color: orange; }

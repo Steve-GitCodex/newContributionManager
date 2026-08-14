@@ -494,12 +494,15 @@ const Templates = {
                 }
                 
                 .month-breakdown th {
-                    background-color: #667eea;
-                    color: white;
+                    background-color: #e0e5f9;
+                    color: #26306b;
                     padding: 12px;
                     text-align: left;
                     border: 1px solid #ddd;
+                    border-bottom: 2px solid #667eea;
                     font-weight: bold;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
                 }
                 
                 .month-breakdown td {
