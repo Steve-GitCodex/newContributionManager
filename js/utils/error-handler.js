@@ -41,6 +41,10 @@ const ErrorHandler = (() => {
   function getUserMessage(error) {
     if (!error) return ERROR_MESSAGES.default;
 
+    // Errors we raise ourselves and mean for the user; everything else is sanitized
+    // so an internal message never reaches the screen.
+    if (error.userFacing && error.message) return error.message;
+
     // Check Firebase auth error code
     if (error.code) {
       return ERROR_MESSAGES[error.code] || ERROR_MESSAGES.default;

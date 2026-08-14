@@ -71,11 +71,11 @@ service cloud.firestore {
       allow delete: if isOrgAdmin(orgId) || isSuperadmin();
     }
 
-    match /organizations/{orgId}/budgets/{uid} {
+    // One ledger per organization (`budgets/org`), not one per person: expenses are set
+    // against org-wide contribution income, and only an admin records them.
+    match /organizations/{orgId}/budgets/{budgetId} {
       allow read: if isMember(orgId) || isSuperadmin();
-      allow write: if isSuperadmin()
-        || isOrgAdmin(orgId)
-        || (isMember(orgId) && request.auth.uid == uid);
+      allow write: if isOrgAdmin(orgId) || isSuperadmin();
     }
 
     match /organizations/{orgId}/{adminOnly}/{docId} {

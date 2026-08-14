@@ -65,23 +65,34 @@ async function isSuperadmin(uid) {
  * Set up user data from database
  * @param {Object} user - Firebase auth user
  */
+// The rules deny the membership read itself to a non-member, so a removed member and
+// a superadmin who never joined both arrive here as permission-denied, not as null.
+async function readMembership(uid) {
+    try {
+        return await OrgDb.getOne('users', uid);
+    } catch (error) {
+        if (error && error.code === 'permission-denied') return null;
+        throw error;
+    }
+}
+
 async function setupUserData(user) {
     try {
-        const membership = await OrgDb.getOne('users', user.uid);
+        const membership = await readMembership(user.uid);
 
         if (membership) {
             user.role = membership.role || 'viewer';
         } else if (await isSuperadmin(user.uid)) {
             user.role = 'admin';
         } else {
-            throw new Error(`You are not a member of ${window.orgName || 'this organization'}. Ask an administrator to invite you.`);
+            const refusal = new Error(`You are not a member of ${window.orgName || 'this organization'}. Ask an administrator to invite you.`);
+            refusal.userFacing = true;
+            throw refusal;
         }
 
         currentUser = user;
     } catch (error) {
-        await ErrorHandler.showError(error, 'Authentication Error', {
-            text: 'Failed to load user data. Please try again.'
-        });
+        await ErrorHandler.showError(error, 'Authentication Error');
         logoutUser();
     }
 }
@@ -288,103 +299,6 @@ function showAdminDashboard() {
 }
 
 /**
- * Load and display user list for admin management
- */
-async function loadUserList() {
-    const userListElement = document.getElementById('user-list');
-    if (!userListElement) return;
-
-    const result = await ErrorHandler.handle(
-        async () => {
-            return await OrgDb.getAll('users');
-        },
-        'Load Users',
-        { showUI: false }
-    );
-
-    if (!result) {
-        userListElement.innerHTML = '<p>Unable to load user list. Please try again.</p>';
-        return;
-    }
-
-    if (Object.keys(result).length === 0) {
-        userListElement.innerHTML = '<p>No users found</p>';
-        return;    }
-
-    let userTable = `
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    for (const [uid, user] of Object.entries(result)) {
-        if (!user || !user.email) continue;
-        
-        userTable += `
-            <tr>
-                <td>${InputValidator.sanitizeHTML(user.email)}</td>
-                <td>
-                    <select class="role-select" data-uid="${InputValidator.sanitizeHTML(uid)}">
-                        <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Member</option>
-                        <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Staff</option>
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                    </select>
-                </td>
-                <td>
-                    <button class="btn btn-small save-role" data-uid="${InputValidator.sanitizeHTML(uid)}">Save</button>
-                </td>
-            </tr>
-        `;
-    }
-    
-    userTable += `
-            </tbody>
-        </table>
-    `;
-    
-    userListElement.innerHTML = userTable;
-    
-    // Attach event listeners
-    document.querySelectorAll('.save-role').forEach(btn => {
-        btn.addEventListener('click', updateUserRole);
-    });
-}
-
-/**
- * Update user role in database
- * @param {Event} e - Click event from save button
- */
-async function updateUserRole(e) {
-    const uid = e.target.dataset.uid;
-    const roleSelect = document.querySelector(`.role-select[data-uid="${uid}"]`);
-    
-    if (!roleSelect) return;
-
-    const newRole = roleSelect.value;
-    const result = await ErrorHandler.handle(
-        async () => {
-            await OrgDb.doc('users', uid).update({ role: newRole });
-            return true;
-        },
-        'Update User Role',
-        { showUI: true }
-    );
-
-    if (result) {
-        await ErrorHandler.showErrorToast(
-            { message: 'User role updated successfully' },
-            'Success'
-        );
-    }
-}
-
-/**
  * Check if current user is authenticated
  * @returns {boolean}
  */
@@ -415,6 +329,5 @@ window.AuthModule = {
     isUserAuthenticated,
     getCurrentUser,
     getUserRole,
-    logoutUser,
-    loadUserList
+    logoutUser
 };

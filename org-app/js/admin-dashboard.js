@@ -120,24 +120,23 @@ const AdminDashboard = (function() {
     // Load and display users
     async function loadUsersData() {
         try {
-            const users = await OrgDb.getAll('users');
-            
+            const users = await MemberAdmin.loadMembers();
+
             dom.adminUserList.innerHTML = '';
 
             for (const uid in users) {
                 if (!Object.prototype.hasOwnProperty.call(users, uid)) continue;
-                
+
                 const user = users[uid];
                 const row = document.createElement('tr');
-                
+                const options = Object.keys(MemberAdmin.ROLES)
+                    .map(role => `<option value="${role}" ${user.role === role ? 'selected' : ''}>${MemberAdmin.ROLES[role]}</option>`)
+                    .join('');
+
                 row.innerHTML = `
                     <td>${sanitizeHTML(user.email)}</td>
                     <td>
-                        <select class="role-select" data-uid="${uid}">
-                            <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Member</option>
-                            <option value="editor" ${user.role === 'editor' ? 'selected' : ''}>Staff</option>
-                            <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                        </select>
+                        <select class="role-select" data-uid="${uid}">${options}</select>
                     </td>
                     <td>
                         <span class="status-badge ${user.role === 'admin' ? 'active' : 'inactive'}">
@@ -145,21 +144,27 @@ const AdminDashboard = (function() {
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-small save-role" data-uid="${uid}">
+                        <button class="btn btn-small save-role" data-requires="admin" data-uid="${uid}">
                             <i class="fas fa-save"></i> Save
+                        </button>
+                        <button class="btn btn-small btn-danger remove-member" data-requires="admin" data-uid="${uid}" data-email="${sanitizeHTML(user.email)}">
+                            <i class="fas fa-user-minus"></i> Remove
                         </button>
                     </td>
                 `;
-                
+
                 dom.adminUserList.appendChild(row);
             }
 
-            // Add event listeners to save buttons
             document.querySelectorAll('.save-role').forEach(btn => {
                 btn.addEventListener('click', saveUserRole);
             });
+
+            document.querySelectorAll('.remove-member').forEach(btn => {
+                btn.addEventListener('click', removeMember);
+            });
         } catch (error) {
-            dom.adminUserList.innerHTML = 
+            dom.adminUserList.innerHTML =
                 '<tr><td colspan="4" style="text-align: center;">Error loading users</td></tr>';
         }
     }
@@ -168,10 +173,9 @@ const AdminDashboard = (function() {
     async function saveUserRole(e) {
         const uid = e.currentTarget.dataset.uid;
         const roleSelect = document.querySelector(`.role-select[data-uid="${uid}"]`);
-        const newRole = roleSelect.value;
 
         try {
-            await OrgDb.doc('users', uid).update({ role: newRole });
+            await MemberAdmin.changeRole(uid, roleSelect.value);
             Swal.fire({
                 icon: 'success',
                 title: 'Success',
@@ -182,11 +186,52 @@ const AdminDashboard = (function() {
                 timer: 3000,
                 customClass: { container: 'swal-alert' }
             });
+            loadUsersData();
         } catch (error) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: 'Failed to update user role',
+                text: error.message || 'Failed to update user role',
+                customClass: { container: 'swal-alert' }
+            });
+        }
+    }
+
+    // Remove a member's access to this organization
+    async function removeMember(e) {
+        const { uid, email } = e.currentTarget.dataset;
+        const currentUid = FirebaseManager.getAuth().currentUser?.uid;
+
+        const confirmed = await Swal.fire({
+            icon: 'warning',
+            title: 'Remove member?',
+            html: `${sanitizeHTML(email)} loses access to this organization immediately.<br><br>Their sign-in account still exists, so they can be invited back.`,
+            showCancelButton: true,
+            confirmButtonText: 'Remove',
+            cancelButtonText: 'Cancel',
+            customClass: { container: 'swal-alert' }
+        });
+
+        if (!confirmed.isConfirmed) return;
+
+        try {
+            await MemberAdmin.remove(uid, currentUid);
+            Swal.fire({
+                icon: 'success',
+                title: 'Removed',
+                text: `${email} is no longer a member.`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                customClass: { container: 'swal-alert' }
+            });
+            loadUsersData();
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Cannot remove',
+                text: error.message || 'Failed to remove the member.',
                 customClass: { container: 'swal-alert' }
             });
         }

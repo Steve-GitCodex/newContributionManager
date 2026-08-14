@@ -53,6 +53,16 @@ describe('login error messages', () => {
         expect(ErrorHandler.getUserMessage({ message: raw })).not.toContain('/organizations/x');
     });
 
+    it('shows a message we wrote ourselves for the user', () => {
+        const refusal = new Error('You are not a member of Aic Isovya Praise. Ask an administrator to invite you.');
+        refusal.userFacing = true;
+        expect(ErrorHandler.getUserMessage(refusal)).toBe(refusal.message);
+    });
+
+    it('still sanitizes an unmarked error carrying a raw message', () => {
+        expect(ErrorHandler.getUserMessage(new Error('collection users at /organizations/x'))).toBe(GENERIC);
+    });
+
     it('falls back to the generic message for an unknown code', () => {
         expect(messageFor('auth/some-future-code')).toBe(GENERIC);
     });

@@ -47,8 +47,7 @@ beforeEach(async () => {
         await setDoc(doc(db, `organizations/${ORG}/users`, VIEWER), { role: 'viewer', email: 'v@x.com' });
         await setDoc(doc(db, `organizations/${ORG}/contributions`, '2026-01-jane'), { memberName: 'Jane', amount: 100, paid: true });
         await setDoc(doc(db, `organizations/${ORG}/blacklist`, 'old-member'), { memberName: 'Old Member' });
-        await setDoc(doc(db, `organizations/${ORG}/budgets`, ADMIN), { expenses: {} });
-        await setDoc(doc(db, `organizations/${ORG}/budgets`, VIEWER), { expenses: {} });
+        await setDoc(doc(db, `organizations/${ORG}/budgets`, 'org'), { expenses: {} });
         await setDoc(doc(db, `organizations/${OTHER_ORG}/contributions`, 'secret'), { memberName: 'Secret', amount: 999 });
     });
 });
@@ -90,16 +89,24 @@ describe('org user (viewer)', () => {
         await assertFails(setDoc(doc(ctx(VIEWER), `organizations/${ORG}/contributions`, 'new'), { amount: 1 }));
     });
 
-    it('can write its own budget', async () => {
-        await assertSucceeds(setDoc(doc(ctx(VIEWER), `organizations/${ORG}/budgets`, VIEWER), { expenses: { a: 1 } }));
+    it('can read the org budget', async () => {
+        await assertSucceeds(getDoc(doc(ctx(VIEWER), `organizations/${ORG}/budgets`, 'org')));
     });
 
-    it('cannot write another member budget', async () => {
-        await assertFails(setDoc(doc(ctx(VIEWER), `organizations/${ORG}/budgets`, ADMIN), { expenses: { a: 1 } }));
+    it('cannot write the org budget', async () => {
+        await assertFails(setDoc(doc(ctx(VIEWER), `organizations/${ORG}/budgets`, 'org'), { expenses: { a: 1 } }));
+    });
+
+    it('cannot write a budget document of its own', async () => {
+        await assertFails(setDoc(doc(ctx(VIEWER), `organizations/${ORG}/budgets`, VIEWER), { expenses: { a: 1 } }));
     });
 });
 
 describe('org staff (editor)', () => {
+    it('cannot write the org budget', async () => {
+        await assertFails(setDoc(doc(ctx(STAFF), `organizations/${ORG}/budgets`, 'org'), { expenses: { a: 1 } }));
+    });
+
     it('can write contributions', async () => {
         await assertSucceeds(setDoc(doc(ctx(STAFF), `organizations/${ORG}/contributions`, 'new'), { amount: 5 }));
     });
@@ -128,6 +135,10 @@ describe('org admin', () => {
 
     it('can write settings', async () => {
         await assertSucceeds(setDoc(doc(ctx(ADMIN), `organizations/${ORG}/settings`, 'migration'), { version: 'x' }));
+    });
+
+    it('can write the org budget', async () => {
+        await assertSucceeds(setDoc(doc(ctx(ADMIN), `organizations/${ORG}/budgets`, 'org'), { expenses: { a: 1 } }));
     });
 
     it('can add a member with a valid role', async () => {

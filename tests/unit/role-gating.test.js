@@ -30,6 +30,38 @@ describe('role publishing', () => {
         });
 });
 
+const permittedViewSource = uiRenderer.match(/permittedView\(viewName\) \{[\s\S]*?\n        \}/)[0]
+    .replace('permittedView(viewName) {', 'function permittedView(viewName) {');
+const makePermittedView = new Function('document', `${permittedViewSource}; return permittedView;`);
+
+function permittedViewFor(role, viewName, requires) {
+    const doc = {
+        documentElement: { dataset: { role } },
+        querySelector: () => (requires ? { dataset: { requires } } : null)
+    };
+    return makePermittedView(doc)(viewName);
+}
+
+describe('a saved view cannot outrank the role', () => {
+    it('sends a viewer who left the app on the budget tab back to monthly', () => {
+        expect(permittedViewFor('viewer', 'budget', 'admin')).toBe('monthly');
+    });
+
+    it('sends staff away from an admin-only view', () => {
+        expect(permittedViewFor('editor', 'budget', 'admin')).toBe('monthly');
+    });
+
+    it('lets an admin back into the budget', () => {
+        expect(permittedViewFor('admin', 'budget', 'admin')).toBe('budget');
+    });
+
+    it('leaves an ungated view alone for every role', () => {
+        for (const role of ['viewer', 'editor', 'admin']) {
+            expect(permittedViewFor(role, 'monthly', null)).toBe('monthly');
+        }
+    });
+});
+
 describe('every mutating control is gated', () => {
     // Scans the source rather than checking a hand-written list. A hand-written
     // list only ever proves what its author remembered — this failed to catch

@@ -2,6 +2,10 @@
 // Everything lives under organizations/{slug} in the central project.
 
 const OrgDb = (function () {
+    // The budget is the organization's, not a person's: expenses are set against the
+    // whole org's contribution income, so one document holds them all.
+    const BUDGET_ID = 'org';
+
     let slug = (typeof window !== 'undefined' && window.orgSlug) ? String(window.orgSlug).trim() : '';
 
     function setSlug(value) {
@@ -45,7 +49,7 @@ const OrgDb = (function () {
         return FirebaseManager.getFirestore().batch();
     }
 
-    return { setSlug, getSlug, orgDoc, collection, doc, getAll, getOne, setOne, batch };
+    return { BUDGET_ID, setSlug, getSlug, orgDoc, collection, doc, getAll, getOne, setOne, batch };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {

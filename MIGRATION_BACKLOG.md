@@ -147,10 +147,27 @@ legitimate access is ever denied in production.
 - [x] **Real login confirmed against the new data layer.** Signing in works and data
       loads, which also proves the auth import preserved the SCRYPT password hashes and
       that the rules permit the reads `DataAdapter.loadAll()` issues as a member.
-- [ ] **A save has still never been executed against live data.** `DataWriteAdapter`
-      reconciles: any record absent from the incoming blob is *deleted*. The id round trip
-      was verified read-only against production, but no write has run. Test with a single
-      small edit and confirm the document count stays at 247 before trusting a bulk edit.
+- [x] **A save has been executed against live data.** Verified in a throwaway org
+      (`debug-paid-test`, since deleted) seeded to production's shape — 275 documents
+      across 21 months. A paid toggle wrote exactly one document; the collection count
+      held at 275 and nothing was deleted. Production itself has taken real writes too:
+      month creation and cloning both persisted.
+
+### Save timing — paid toggle lost on refresh (fixed 2026-08-14)
+`saveData` scheduled the write on a **1-second `setTimeout`**, so the click only ever
+armed a timer. Refresh inside that second and the write never happened — hence "it saves
+if I switch tabs first, but not if I refresh straight away". Three changes:
+
+- The write now starts on the click. Overlapping saves collapse: one in flight, at most
+  one queued behind it.
+- `beforeunload` warns while a save is in flight or queued, instead of losing it silently.
+- `DataWriteAdapter.saveAll` commits the edits *before* reading the collections for its
+  pruning pass. The read of 275 documents used to sit between the click and the first
+  write; now a page closed mid-save keeps the edit and only skips the pruning, which the
+  next save repeats.
+
+`UIRenderer.performMonthClone` no longer sleeps 1500ms guessing at the timer — it awaits
+the save.
 
 ### Phase 3 — roles and membership (done)
 - [x] **Invite UI.** `org-app/js/member-invite.js` plus a form on the admin dashboard.
@@ -207,8 +224,31 @@ This also fixed a latent bug: `pages/organization.html` never loaded
 ### Still open
 - [ ] **Password change.** Members are given a starter password by an admin and there is
       no in-app way to change it. Firebase's password-reset email is the cheap fix.
-- [ ] **Removing a member** is not possible from the UI; roles can be changed but not
-      revoked, so a departing member keeps access until someone edits Firestore by hand.
+- [x] **Removing a member** — `org-app/js/member-admin.js` owns role changes and removals;
+      the admin dashboard's user table delegates to it. Two guards: you cannot remove
+      yourself, and the last admin can be neither removed nor demoted. Removal deletes
+      `organizations/{slug}/users/{uid}`, which the rules already allow an admin to do;
+      the Firebase Auth account survives (deleting it needs the Admin SDK), so the person
+      can be invited back. 8 tests, plus a live check that the removed account is locked
+      out on its next load.
+
+      Two things fell out of testing that removal:
+      - **A removed member saw "You do not have permission to perform this action."** The
+        rules deny the *membership read itself* to a non-member, so `setupUserData` failed
+        on the read and never reached its "ask an administrator to invite you" branch —
+        which also meant a **superadmin who never joined an org was locked out of it**,
+        despite `auth.js` having a fallback for exactly that. `readMembership` now treats
+        `permission-denied` as "no membership" and lets both paths continue.
+      - `ErrorHandler.getUserMessage` sanitized *every* message, so errors we write for
+        the user were replaced by the generic text. Errors marked `userFacing` now pass
+        through; unmarked ones are still sanitized, so no raw Firebase message reaches the
+        screen.
+
+- [x] **A saved view could outrank a role.** `currentView` is restored from localStorage,
+      so a member whose role was reduced — or any viewer who had been shown the budget —
+      reopened that tab even though `data-role` hides its button. Controls inside stayed
+      hidden and the rules refuse the writes, but the figures were on screen.
+      `UIRenderer.permittedView` sends a view the role cannot open back to monthly.
 - [ ] **Email enumeration.** Signup must stay enabled at the project level because
       `MemberInvite` provisions accounts with the client SDK, so
       `auth/email-already-in-use` reveals whether an address is registered — regardless of
@@ -245,8 +285,18 @@ This also fixed a latent bug: `pages/organization.html` never loaded
       collections once; no `await` remains inside a loop in either adapter.
 - [ ] **Startup loads everything** — 247 documents per launch. Firestore bills per document
       read. Fine on Spark's 50k/day, but the access pattern wants per-month queries.
-- [ ] **Budget scoping mismatch.** The app reads `budgets/{uid}`; the admin dashboard
-      aggregates the whole `budgets` collection. Predates this work.
+- [x] **Budget scoping mismatch fixed.** The app read `budgets/{uid}` while the admin
+      dashboard aggregated the whole collection, so each admin saw only the expenses they
+      had entered, measured against the *whole org's* income. Expenses are org money, so
+      there is now one ledger: `budgets/org`, written only by an admin (an editor's save
+      no longer carries a budget write, which would have failed the rules and taken the
+      whole batch down with it). The dashboard's aggregation is unchanged and still
+      correct. Rules tightened to admin-only writes under `budgets/` — 41/41 emulator
+      assertions pass, **but they are not deployed yet**.
+
+      Live data still needs `node scripts/merge-budgets.js --apply` (dry run reports one
+      per-user document, 2 expenses, 5050). Run it *before* the new code ships, or the
+      budget tab reads an empty `budgets/org`.
 
 ### Cleanup
 - [x] `js/pages/landing.js` deleted — the RTDB `superadminUsers` read went with it.

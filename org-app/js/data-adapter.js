@@ -2,8 +2,6 @@
 
 const DataAdapter = (function () {
     async function loadAll() {
-        const currentUserUID = AuthModule.getCurrentUser()?.uid;
-
         const [
             contributions,
             months,
@@ -19,7 +17,7 @@ const DataAdapter = (function () {
             OrgDb.getAll('campaigns'),
             OrgDb.getAll('campaignContributions'),
             OrgDb.getOne('meta', 'state'),
-            currentUserUID ? OrgDb.getOne('budgets', currentUserUID) : Promise.resolve(null)
+            OrgDb.getOne('budgets', OrgDb.BUDGET_ID)
         ]);
 
         return {

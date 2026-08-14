@@ -13,6 +13,7 @@ function makeOrgDb(existing = {}) {
     const batches = [];
 
     const orgDb = {
+        BUDGET_ID: 'org',
         doc: (collection, id) => ({ collection, id }),
         getAll: async collection => existing[collection] || {},
         batch: () => {
@@ -49,7 +50,7 @@ describe('DataWriteAdapter', () => {
     });
 
     it('writes contributions under their stable ids', async () => {
-        await adapter.saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(contributionsBlob, null, null, null, 'admin');
         const writes = opsFor(harness.committed, 'contributions');
 
         expect(writes).toHaveLength(1);
@@ -58,11 +59,11 @@ describe('DataWriteAdapter', () => {
     });
 
     it('does not rewrite ids on a second save of the same data', async () => {
-        await adapter.saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(contributionsBlob, null, null, null, 'admin');
         const firstIds = opsFor(harness.committed, 'contributions').map(op => op.ref.id);
 
         const second = makeOrgDb({ contributions: { '2025-01-angela': {} } });
-        await loadAdapter(second.orgDb).saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await loadAdapter(second.orgDb).saveAll(contributionsBlob, null, null, null, 'admin');
 
         const secondOps = opsFor(second.committed, 'contributions');
         expect(secondOps.map(op => op.ref.id)).toEqual(firstIds);
@@ -71,44 +72,65 @@ describe('DataWriteAdapter', () => {
 
     it('deletes a record that is no longer present', async () => {
         const withStale = makeOrgDb({ contributions: { '2025-01-angela': {}, '2025-01-removed': {} } });
-        await loadAdapter(withStale.orgDb).saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await loadAdapter(withStale.orgDb).saveAll(contributionsBlob, null, null, null, 'admin');
 
         const deletes = opsFor(withStale.committed, 'contributions').filter(op => op.type === 'delete');
         expect(deletes.map(op => op.ref.id)).toEqual(['2025-01-removed']);
     });
 
+    it('commits the edit before reading the collection it prunes against', async () => {
+        const timeline = [];
+        const orgDb = {
+            doc: (collection, id) => ({ collection, id }),
+            getAll: async collection => { timeline.push(`read:${collection}`); return {}; },
+            batch: () => {
+                const operations = [];
+                return {
+                    set: (ref, data) => operations.push({ ref, data }),
+                    delete: () => {},
+                    commit: async () => { timeline.push(`commit:${operations.length}`); }
+                };
+            }
+        };
+
+        await loadAdapter(orgDb).saveAll(contributionsBlob, null, null, null, 'admin');
+
+        expect(timeline[0]).toMatch(/^commit:/);
+        expect(timeline.indexOf('read:contributions')).toBeGreaterThan(0);
+    });
+
     it('records the month so an empty month is not lost', async () => {
-        await adapter.saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(contributionsBlob, null, null, null, 'admin');
         expect(opsFor(harness.committed, 'months').map(op => op.ref.id)).toEqual(['2025-January']);
     });
 
     it('writes the blacklist for an admin', async () => {
-        await adapter.saveAll(null, { blacklistedMembers: ['Angela'] }, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(null, { blacklistedMembers: ['Angela'] }, null, null, 'admin');
         expect(opsFor(harness.committed, 'blacklist').map(op => op.ref.id)).toEqual(['angela']);
     });
 
     it('refuses to write the blacklist for a non-admin', async () => {
-        await adapter.saveAll(null, { blacklistedMembers: ['Angela'] }, null, null, 'editor', 'uid-1');
+        await adapter.saveAll(null, { blacklistedMembers: ['Angela'] }, null, null, 'editor');
         expect(opsFor(harness.committed, 'blacklist')).toEqual([]);
     });
 
-    it('scopes the budget write to the current user', async () => {
-        await adapter.saveAll(null, null, { expenses: { e1: 10 } }, null, 'viewer', 'uid-1');
+    it('writes the budget to the single org document', async () => {
+        await adapter.saveAll(null, null, { expenses: { e1: 10 } }, null, 'admin');
         const writes = opsFor(harness.committed, 'budgets');
 
         expect(writes).toHaveLength(1);
-        expect(writes[0].ref.id).toBe('uid-1');
+        expect(writes[0].ref.id).toBe('org');
     });
 
-    it('skips the budget when there is no signed-in uid', async () => {
-        await adapter.saveAll(null, null, { expenses: {} }, null, 'viewer', null);
+    it('refuses to write the budget for a non-admin', async () => {
+        await adapter.saveAll(null, null, { expenses: { e1: 10 } }, null, 'editor');
         expect(opsFor(harness.committed, 'budgets')).toEqual([]);
     });
 
     it('writes campaigns to the campaigns collection, not specialGiving', async () => {
         await adapter.saveAll(null, null, null, {
             camp_1: { purpose: 'Roof', contributions: { 'camp_1--angela': { contributorName: 'Angela', pledgedAmount: 500, amountPaid: 100 } } }
-        }, 'admin', 'uid-1');
+        }, 'admin');
 
         expect(opsFor(harness.committed, 'campaigns').map(op => op.ref.id)).toEqual(['camp_1']);
         expect(opsFor(harness.committed, 'campaignContributions').map(op => op.ref.id)).toEqual(['camp_1--angela']);
@@ -116,7 +138,7 @@ describe('DataWriteAdapter', () => {
     });
 
     it('always stamps meta/state with the sync time', async () => {
-        await adapter.saveAll(contributionsBlob, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(contributionsBlob, null, null, null, 'admin');
         const meta = opsFor(harness.committed, 'meta');
 
         expect(meta).toHaveLength(1);
@@ -128,7 +150,7 @@ describe('DataWriteAdapter', () => {
         const contributions = [];
         for (let i = 0; i < 1200; i++) contributions.push({ name: `Member ${i}`, amount: 10, paid: true });
 
-        await adapter.saveAll({ 2025: { January: { contributions } } }, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll({ 2025: { January: { contributions } } }, null, null, null, 'admin');
 
         expect(harness.batches.length).toBeGreaterThan(1);
         for (const batch of harness.batches) expect(batch.length).toBeLessThanOrEqual(450);
@@ -138,13 +160,13 @@ describe('DataWriteAdapter', () => {
         const contributions = [];
         for (let i = 0; i < 1200; i++) contributions.push({ name: `Member ${i}`, amount: 10, paid: true });
 
-        await adapter.saveAll({ 2025: { January: { contributions } } }, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll({ 2025: { January: { contributions } } }, null, null, null, 'admin');
 
         expect(opsFor(harness.committed, 'contributions')).toHaveLength(1200);
     });
 
     it('leaves collections untouched when nothing was passed for them', async () => {
-        await adapter.saveAll(null, null, null, null, 'admin', 'uid-1');
+        await adapter.saveAll(null, null, null, null, 'admin');
 
         expect(opsFor(harness.committed, 'contributions')).toEqual([]);
         expect(opsFor(harness.committed, 'campaigns')).toEqual([]);

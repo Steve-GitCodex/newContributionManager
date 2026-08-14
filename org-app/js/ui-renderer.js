@@ -444,11 +444,7 @@ const UIRenderer = (function() {
                             total: sourceData.total
                         };
                         
-                        // Save the data
-                        if (_saveCallback) {
-                            _saveCallback(false);
-                            await new Promise(resolve => setTimeout(resolve, 1500));
-                        }
+                        if (_saveCallback) await _saveCallback(false);
                         
                         // Close loading dialog
                         Swal.close();
@@ -665,6 +661,20 @@ const UIRenderer = (function() {
                     if (specialGivingView) specialGivingView.style.display = 'block';
                     break;
             }
+        },
+
+        // A saved view outlives a role change, so a demoted member could reopen a tab
+        // whose button their role no longer shows.
+        permittedView(viewName) {
+            const tab = document.querySelector(`.tab-btn[data-view="${viewName}"]`);
+            const requires = tab && tab.dataset.requires;
+            if (!requires) return viewName;
+
+            const role = document.documentElement.dataset.role || 'viewer';
+            const rank = { viewer: 0, editor: 1, admin: 2 };
+            const needed = requires.includes('admin') ? rank.admin : rank.editor;
+
+            return rank[role] >= needed ? viewName : 'monthly';
         },
 
         // Publishes the role to CSS. Everything gated carries data-requires, so content

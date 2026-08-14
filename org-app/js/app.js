@@ -105,78 +105,98 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    let saveTimeout = null;
+    let saveInFlight = null;
+    let saveQueued = false;
+
+    // Writes start on the click, not after a timer: a refresh a moment later used to
+    // discard the change. Overlapping calls collapse into one follow-up save.
     async function saveData(showNotification = false) {
-        if (saveTimeout) clearTimeout(saveTimeout);
-        
-        saveTimeout = setTimeout(async () => {
-            const startTime = performance.now();
-            try {
-                const userRole = AuthModule.getUserRole();
-                const currentUserUID = AuthModule.getCurrentUser()?.uid;
+        if (saveInFlight) {
+            saveQueued = true;
+            return saveInFlight;
+        }
 
-                if (userRole !== 'admin' && userRole !== 'editor') {
-                    throw new Error('You do not have permission to save changes.');
-                }
-
-                const backupPayload = {
-                    contributionsData: appState.contributionsData,
-                    blacklistData: appState.blacklistData,
-                    budgetData: appState.budgetData,
-                    campaignsData: appState.campaignsData,
-                    timestamp: new Date().toISOString()
-                };
-                localStorage.setItem('contributionsData', JSON.stringify(appState.contributionsData || {}));
-                localStorage.setItem('blacklistData', JSON.stringify(appState.blacklistData));
-                localStorage.setItem('budgetData', JSON.stringify(appState.budgetData || {}));
-                localStorage.setItem('campaignsData', JSON.stringify(appState.campaignsData || {}));
-                localStorage.setItem('lastBackup', JSON.stringify(backupPayload));
-
-                const success = await DataWriteAdapter.saveAll(
-                    appState.contributionsData,
-                    appState.blacklistData,
-                    appState.budgetData,
-                    appState.campaignsData,
-                    userRole,
-                    currentUserUID
-                );
-
-                if (success) {
-                    const now = Date.now();
-                    FirebaseManager.setLastSyncTime(now);
-                    Utils.updateSyncStatus(now);
-                    localStorage.setItem('lastSyncTime', now);
-                    
-                    if (showNotification) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Saved!',
-                            text: 'Your changes have been saved to Firebase.',
-                            toast: true,
-                            position: 'top-end',
-                            showConfirmButton: false,
-                            timer: 3000
-                        });
-                    }
-                    
-                    try {
-                        updateDisplay();
-                    } catch (err) {
-                        // Update display error handled gracefully
-                    }
-                }
-            } catch (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Save Failed',
-                    text: 'Failed to save changes. Please try syncing manually.',
-                    toast: true,
-                    position: 'top-end',
-                    timer: 3000,
-                    showConfirmButton: false
-                });
+        saveInFlight = performSave(showNotification).finally(() => {
+            saveInFlight = null;
+            if (saveQueued) {
+                saveQueued = false;
+                saveData();
             }
-        }, 1000);
+        });
+
+        return saveInFlight;
+    }
+
+    window.addEventListener('beforeunload', (event) => {
+        if (!saveInFlight && !saveQueued) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
+
+    async function performSave(showNotification) {
+        try {
+            const userRole = AuthModule.getUserRole();
+
+            if (userRole !== 'admin' && userRole !== 'editor') {
+                throw new Error('You do not have permission to save changes.');
+            }
+
+            const backupPayload = {
+                contributionsData: appState.contributionsData,
+                blacklistData: appState.blacklistData,
+                budgetData: appState.budgetData,
+                campaignsData: appState.campaignsData,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem('contributionsData', JSON.stringify(appState.contributionsData || {}));
+            localStorage.setItem('blacklistData', JSON.stringify(appState.blacklistData));
+            localStorage.setItem('budgetData', JSON.stringify(appState.budgetData || {}));
+            localStorage.setItem('campaignsData', JSON.stringify(appState.campaignsData || {}));
+            localStorage.setItem('lastBackup', JSON.stringify(backupPayload));
+
+            const success = await DataWriteAdapter.saveAll(
+                appState.contributionsData,
+                appState.blacklistData,
+                appState.budgetData,
+                appState.campaignsData,
+                userRole
+            );
+
+            if (success) {
+                const now = Date.now();
+                FirebaseManager.setLastSyncTime(now);
+                Utils.updateSyncStatus(now);
+                localStorage.setItem('lastSyncTime', now);
+                
+                if (showNotification) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Saved!',
+                        text: 'Your changes have been saved to Firebase.',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
+                }
+                
+                try {
+                    updateDisplay();
+                } catch (err) {
+                    // Update display error handled gracefully
+                }
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Save Failed',
+                text: 'Failed to save changes. Please try syncing manually.',
+                toast: true,
+                position: 'top-end',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        }
     }
 
     async function syncData() {
@@ -548,6 +568,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventListeners();
 
         // Activate the saved tab UI and show the view content
+        appState.currentView = UIRenderer.permittedView(appState.currentView);
         ViewManager.updateTabUI(appState.currentView);
         UIRenderer.showView(appState.currentView);
 

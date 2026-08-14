@@ -1,5 +1,6 @@
 // Writes the app's year/month blob back to the org's flat Firestore collections.
-// Records absent from the incoming data are deleted, so a save is a full reconcile.
+// Edits commit before the read that finds records to prune, so a page closed mid-save
+// keeps the edit; the next save repeats the pruning.
 
 const DataWriteAdapter = (function () {
     const BATCH_LIMIT = 450;
@@ -15,22 +16,21 @@ const DataWriteAdapter = (function () {
         }
     }
 
-    function reconcile(collectionName, records, existingIds) {
-        const operations = [];
-        const nextIds = new Set();
+    function writes(collectionName, records) {
+        return records.map(record => ({
+            type: 'set',
+            ref: OrgDb.doc(collectionName, record.id),
+            data: record
+        }));
+    }
 
-        for (const record of records) {
-            nextIds.add(record.id);
-            operations.push({ type: 'set', ref: OrgDb.doc(collectionName, record.id), data: record });
-        }
+    async function deletions(collectionName, records) {
+        const kept = new Set(records.map(record => record.id));
+        const existing = await OrgDb.getAll(collectionName);
 
-        for (const id of existingIds) {
-            if (!nextIds.has(id)) {
-                operations.push({ type: 'delete', ref: OrgDb.doc(collectionName, id) });
-            }
-        }
-
-        return operations;
+        return Object.keys(existing)
+            .filter(id => !kept.has(id))
+            .map(id => ({ type: 'delete', ref: OrgDb.doc(collectionName, id) }));
     }
 
     function monthOperations(contributionsData) {
@@ -50,46 +50,41 @@ const DataWriteAdapter = (function () {
         return operations;
     }
 
-    async function saveAll(contributionsData, blacklistData, budgetData, campaignsData, userRole, currentUserUID) {
+    async function saveAll(contributionsData, blacklistData, budgetData, campaignsData, userRole) {
         const operations = [];
+        const prunable = [];
 
         if (contributionsData && Object.keys(contributionsData).length > 0) {
-            const existing = await OrgDb.getAll('contributions');
-            operations.push(...reconcile(
-                'contributions',
-                ContributionMapper.flattenContributions(contributionsData),
-                Object.keys(existing)
-            ));
+            const records = ContributionMapper.flattenContributions(contributionsData);
+            operations.push(...writes('contributions', records));
             operations.push(...monthOperations(contributionsData));
+            prunable.push(['contributions', records]);
         }
 
         if (blacklistData && userRole === 'admin') {
-            const existing = await OrgDb.getAll('blacklist');
-            operations.push(...reconcile(
-                'blacklist',
-                ContributionMapper.flattenBlacklist(blacklistData),
-                Object.keys(existing)
-            ));
+            const records = ContributionMapper.flattenBlacklist(blacklistData);
+            operations.push(...writes('blacklist', records));
+            prunable.push(['blacklist', records]);
         }
 
-        if (budgetData && currentUserUID) {
-            operations.push({ type: 'set', ref: OrgDb.doc('budgets', currentUserUID), data: budgetData });
+        if (budgetData && userRole === 'admin') {
+            operations.push({ type: 'set', ref: OrgDb.doc('budgets', OrgDb.BUDGET_ID), data: budgetData });
         }
 
         if (campaignsData) {
             const { campaigns, campaignContributions } = ContributionMapper.flattenCampaigns(campaignsData);
-            const [existingCampaigns, existingContributions] = await Promise.all([
-                OrgDb.getAll('campaigns'),
-                OrgDb.getAll('campaignContributions')
-            ]);
-
-            operations.push(...reconcile('campaigns', campaigns, Object.keys(existingCampaigns)));
-            operations.push(...reconcile('campaignContributions', campaignContributions, Object.keys(existingContributions)));
+            operations.push(...writes('campaigns', campaigns));
+            operations.push(...writes('campaignContributions', campaignContributions));
+            prunable.push(['campaigns', campaigns], ['campaignContributions', campaignContributions]);
         }
 
         operations.push({ type: 'set', ref: OrgDb.doc('meta', 'state'), data: { lastSync: Date.now() } });
 
         await commit(operations);
+
+        const stale = await Promise.all(prunable.map(([name, records]) => deletions(name, records)));
+        await commit(stale.flat());
+
         return true;
     }
 
