@@ -1,7 +1,3 @@
-// Connection details for the central Firebase project. These identify the project;
-// they do not authenticate anyone, so they ship to the browser like a Supabase anon
-// key. Access is controlled by Firebase Auth and firestore.rules.
-
 const CENTRAL_FIREBASE_CONFIG = {
   "apiKey": "AIzaSyCHkmWsSkmjOJBoNQcsa_U97iNchcgPwkw",
   "authDomain": "universal-contribution-manager.firebaseapp.com",
@@ -25,7 +21,7 @@ function initializeCentralFirebase() {
 
     centralApp = firebase.initializeApp(CENTRAL_FIREBASE_CONFIG);
     centralFirestore = firebase.firestore(centralApp);
-    
+
     // Initialize Auth using compat API
     // In compat version, firebase.auth() returns the default app's auth instance
     try {

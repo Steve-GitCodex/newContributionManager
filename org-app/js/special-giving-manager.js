@@ -102,25 +102,29 @@ const SpecialGivingManager = (function() {
                 
                 const campaign = campaignsData[campaignId];
                 const { totalPaid, contributorCount } = this.calculateCampaignPayments(campaignsData, campaignId);
-                
-                const pledgedProgress = campaign.targetAmount > 0 
-                    ? Math.round((campaign.amountRaised / campaign.targetAmount) * 100)
+                const amountRaised = Number(campaign.amountRaised) || 0;
+                const targetAmount = Number(campaign.targetAmount) || 0;
+
+                const pledgedProgress = targetAmount > 0
+                    ? Math.round((amountRaised / targetAmount) * 100)
                     : 0;
-                
-                const paidProgress = campaign.amountRaised > 0
-                    ? Math.round((totalPaid / campaign.amountRaised) * 100)
+
+                const paidProgress = amountRaised > 0
+                    ? Math.round((totalPaid / amountRaised) * 100)
                     : 0;
-                
-                const outstandingAmount = Math.max(0, campaign.amountRaised - totalPaid);
-                
+
+                const outstandingAmount = Math.max(0, amountRaised - totalPaid);
+
                 campaignsList.push({
                     ...campaign,
+                    amountRaised: amountRaised,
+                    targetAmount: targetAmount,
                     pledgedProgress: pledgedProgress,
                     paidProgress: paidProgress,
                     totalPaid: totalPaid,
                     contributorCount: contributorCount,
                     outstandingAmount: outstandingAmount,
-                    remaining: Math.max(0, campaign.targetAmount - campaign.amountRaised),
+                    remaining: Math.max(0, targetAmount - amountRaised),
                     formattedDateCreated: moment(campaign.dateCreated).format('DD/MM/YYYY'),
                     formattedTargetDate: campaign.targetDate ? moment(campaign.targetDate).format('DD/MM/YYYY') : 'No target date'
                 });
@@ -139,24 +143,28 @@ const SpecialGivingManager = (function() {
             
             const campaign = campaignsData[campaignId];
             const { totalPaid, contributorCount } = this.calculateCampaignPayments(campaignsData, campaignId);
-            
-            const pledgedProgress = campaign.targetAmount > 0 
-                ? Math.round((campaign.amountRaised / campaign.targetAmount) * 100)
+            const amountRaised = Number(campaign.amountRaised) || 0;
+            const targetAmount = Number(campaign.targetAmount) || 0;
+
+            const pledgedProgress = targetAmount > 0
+                ? Math.round((amountRaised / targetAmount) * 100)
                 : 0;
-            
-            const paidProgress = campaign.amountRaised > 0
-                ? Math.round((totalPaid / campaign.amountRaised) * 100)
+
+            const paidProgress = amountRaised > 0
+                ? Math.round((totalPaid / amountRaised) * 100)
                 : 0;
-            
+
             return {
                 ...campaign,
+                amountRaised: amountRaised,
+                targetAmount: targetAmount,
                 pledgedProgress: pledgedProgress,
                 paidProgress: paidProgress,
                 progress: pledgedProgress, // For backward compatibility
                 totalPaid: totalPaid,
                 contributorCount: contributorCount,
-                outstandingAmount: Math.max(0, campaign.amountRaised - totalPaid),
-                remaining: Math.max(0, campaign.targetAmount - campaign.amountRaised),
+                outstandingAmount: Math.max(0, amountRaised - totalPaid),
+                remaining: Math.max(0, targetAmount - amountRaised),
                 formattedDateCreated: moment(campaign.dateCreated).format('DD/MM/YYYY'),
                 formattedTargetDate: campaign.targetDate ? moment(campaign.targetDate).format('DD/MM/YYYY') : 'No target date'
             };

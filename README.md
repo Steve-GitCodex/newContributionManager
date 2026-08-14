@@ -1,141 +1,54 @@
 # ContriFlow
 
-A free, secure web app for tracking member giving and managing finances.
+Multi-tenant contribution tracking for churches, non-profits and community groups.
+Each organization records monthly member contributions, runs fundraising campaigns,
+tracks expenses against income, and reports on any of it.
 
-![ContriFlow Logo](assets/logo.svg)
+Static files, no build step. Vanilla JavaScript with Firebase Auth and Firestore,
+deployed on Vercel.
 
----
+## Running locally
 
-## What Is ContriFlow?
+```
+npm install
+npm run dev            # http://localhost:4321
+```
 
-ContriFlow helps your organization keep track of who gave what, when. Whether you run a church, non-profit, or community group, you can:
+The dev server serves the repository as-is. No bundler, no environment variables —
+what runs locally is what deploys.
 
-- 📝 Record donations and contributions
-- 👥 Manage your member list
-- 📊 See reports on giving patterns
-- 🎯 Run special fundraising campaigns
-- 📱 Access it from any device with a web browser
+## Deploying
 
-**No software to install. No credit card needed. Free for now and secure.**
+Vercel serves the repository directly. `vercel.json` defines rewrites and nothing
+else; there is no build command, so a push is a deploy.
 
----
+## Layout
 
-## Who Uses It?
+```
+index.html      landing
+pages/          organization entry and error pages
+org-app/        the application
+js/             shared services and utilities
+css/            styles
+assets/         images and icons
+scripts/        operational tools, run manually against live data
+```
 
-**Members** can:
-- Log in securely with their email
-- See their own giving history
-- Check if special campaigns are on track
+Application modules are IIFE globals loaded by `<script>` tag, in dependency order.
+A new module must appear in the list before whatever consumes it.
 
-**Admins** can:
-- Add and manage members
-- Record contributions and donations
-- Create reports on who gave how much
-- Export data if needed
-- Set up special fundraising goals
+## Access
 
-**Church Leaders** can:
-- Run it from their phone, tablet, or computer
-- See the big picture of giving
-- Manage multiple people with different access levels
+Organizations are isolated from each other by Firestore security rules, which read
+the caller's membership document. Roles are Admin, Staff and Member, enforced by
+those rules rather than by the interface — a browser can call Firestore directly,
+so the UI only reflects what the rules already permit.
 
----
+Accounts are created by invitation from the admin dashboard. There is no
+self-registration.
 
-## Getting Started in 3 Steps
+## Local-only files
 
-### Step 1: Set It Up
-Go to your church's ContriFlow website and choose "Admin Setup"
-
-### Step 2: Create Your Account
-Enter your email and create a password
-
-### Step 3: Add Your Members
-Invite members to sign up with their email addresses
-
-**That's it!** Members can now log in and you can start tracking contributions.
-
----
-
-## How It Works
-
-1. **Members log in** with their email and password
-2. **Admins add contributions** when members give (or members can log in and see their history)
-3. **Reports show giving trends** - see who gave, how much, and when
-4. **Export if needed** - download data as a spreadsheet
-
-Simple. Secure. No complications.
-
----
-
-## Quick Features
-
-✅ **Easy to use** - No training needed  
-✅ **Secure** - Your data stays private  
-✅ **Free for now** - No subscription or fees yet
-✅ **Mobile friendly** - Works on phones and tablets  
-✅ **Dark/Light mode** - Choose what looks good to you  
-
----
-
-## 🔒 Is My Data Safe?
-
-**Yes.** ContriFlow uses the same security technology that banks use:
-
-- 🔐 Passwords are encrypted (nobody can read them)
-- 🛡️ Your data is protected - only you and people you invite can see it
-- 🔒 Data travels securely over the internet (HTTPS)
-- ⏱️ You're automatically logged out after 30 minutes of not using it
-- 👤 Each member can only see their own giving history
-
-**Your data belongs to you.** We don't sell it, share it, or use it for anything else.
-
-If you want to know more about how we protect your data, ask your admin for the full security report.
-
----
-
-
-## What You Need to Know
-
-- 📶 **Needs internet** - ContriFlow requires an internet connection to work
-- 📱 **Works everywhere** - Use on your computer, phone, or tablet
-- 📊 **Your data stays yours** - Download it anytime as a spreadsheet
-- 🆓 **Always free** - No subscriptions, no hidden costs
-
----
-
-## Troubleshooting
-
-**Can't log in?**
-- Make sure you typed your email correctly
-- Check that caps lock isn't on
-- Try resetting your password
-
-**Page won't load?**
-- Check your internet connection
-- Try refreshing the page (press F5)
-- Clear your browser's cache
-
-**Data not saving?**
-- Make sure you have a good internet connection
-- Check that you have permission to edit
-- Contact your admin if you're still having trouble
-
-**Something else isn't working?**
-- Take a screenshot
-- Note what you were trying to do
-- Contact your admin or submit an issue on GitHub
-
----
-
-## Made By
-
-Built with care for churches, nonprofits, and community organizations.
-
-Questions? Problems? Want to help?  
-Visit us on GitHub or contact your admin.
-
----
-
-**ContriFlow - Simple giving. Secure data. Your community.**
-
-*Last Updated: February 10, 2026*
+Tests, test configuration, Firestore rules and the Firebase deploy config are kept
+out of this repository deliberately. It is the Vercel deploy source and Vercel needs
+none of them; they live on the maintainer's machine and deploy from there.

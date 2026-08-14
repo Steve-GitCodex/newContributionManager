@@ -455,7 +455,7 @@ const CampaignHandlers = (function () {
                                                 // Also refresh the campaign cards in the main view
                                                 const allCampaigns = SpecialGivingManager.getAllCampaigns(state.campaignsData);
                                                 UIRenderer.renderSpecialGivingView(allCampaigns);
-                                                EventHandlers.setupSpecialGivingEventHandlers();
+                                                CampaignHandlers.setup();
                                             }
                                         } catch (error) {
                                             Dialogs.error('Update Failed', 'Failed to update contribution');
@@ -535,7 +535,7 @@ const CampaignHandlers = (function () {
                                                 // Also refresh the campaign cards in the main view
                                                 const allCampaigns = SpecialGivingManager.getAllCampaigns(state.campaignsData);
                                                 UIRenderer.renderSpecialGivingView(allCampaigns);
-                                                EventHandlers.setupSpecialGivingEventHandlers();
+                                                CampaignHandlers.setup();
                                             }
                                         } catch (error) {
                                             Dialogs.error('Payment Failed', 'Failed to record payment');
@@ -596,7 +596,7 @@ const CampaignHandlers = (function () {
                                                     // Also refresh the campaign cards in the main view
                                                     const allCampaigns = SpecialGivingManager.getAllCampaigns(state.campaignsData);
                                                     UIRenderer.renderSpecialGivingView(allCampaigns);
-                                                    EventHandlers.setupSpecialGivingEventHandlers();
+                                                    CampaignHandlers.setup();
                                                 }
                                             } catch (error) {
                                                 Dialogs.error('Delete Failed', 'Failed to delete contribution');

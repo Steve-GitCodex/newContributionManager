@@ -177,7 +177,7 @@ const ContributionMapper = (function () {
         for (const campaignId of Object.keys(campaignsMap || {})) {
             const record = campaignsMap[campaignId];
             if (!record) continue;
-            campaigns[campaignId] = { ...record, contributions: {} };
+            campaigns[campaignId] = { ...record, id: record.id || campaignId, contributions: {} };
         }
 
         for (const key of Object.keys(campaignContributionsMap || {})) {
@@ -185,6 +185,7 @@ const ContributionMapper = (function () {
             if (!record || !campaigns[record.campaignId]) continue;
 
             campaigns[record.campaignId].contributions[record.id || key] = carry(record, {
+                id: record.id || key,
                 contributorName: record.contributorName,
                 pledgedAmount: Number(record.pledgedAmount) || 0,
                 amountPaid: Number(record.amountPaid) || 0,

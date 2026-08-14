@@ -121,3 +121,14 @@ users.json
 hash-config.json
 users-import.json
 .playwright-mcp/
+
+# ==========================
+# Local-only tooling — the repo is the Vercel deploy source
+# ==========================
+MIGRATION_BACKLOG.md
+tests/
+vitest.config.js
+vitest.rules.config.js
+firestore.rules
+firebase.json
+firestore-debug.log

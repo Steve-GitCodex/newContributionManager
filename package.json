@@ -6,7 +6,6 @@
   "main": "index.html",
   "scripts": {
     "dev": "node dev-server.mjs",
-    "migrate": "node scripts/migrate-to-central.js",
     "test": "vitest",
     "test:rules": "firebase emulators:exec --only firestore --project rules-test-contriflow \"vitest run --config vitest.rules.config.js\"",
     "test:watch": "vitest --watch",
